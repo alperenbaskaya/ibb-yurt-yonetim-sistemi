@@ -82,15 +82,16 @@ public class JwtService {
     }
 
     //TOKEN KULLANICIYA AİT Mİ DEĞİL Mİ ? SÜRESİ DOLMUŞ MU ? KONTROL EDİLİR.
+
     public boolean isTokenValid(
             String token,
-            AppUser user
+            String expectedEmail
     ) {
-        String email =
+        String tokenEmail =
                 extractEmail(token);
 
-        return email.equalsIgnoreCase(
-                user.getEmail()
+        return tokenEmail.equalsIgnoreCase(
+                expectedEmail
         ) && !isTokenExpired(token);
     }
 
