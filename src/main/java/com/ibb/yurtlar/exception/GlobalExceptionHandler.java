@@ -712,4 +712,24 @@ public class GlobalExceptionHandler {
     }
 
 
+    @ExceptionHandler(
+            InvalidUserConfigurationException.class
+    )
+    public ResponseEntity<ApiError>
+    handleInvalidUserConfiguration(
+            InvalidUserConfigurationException exception,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = createApiError(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(apiError);
+    }
+
 }

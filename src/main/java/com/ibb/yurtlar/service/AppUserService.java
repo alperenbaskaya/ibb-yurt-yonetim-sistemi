@@ -11,6 +11,7 @@ import com.ibb.yurtlar.exception.DormitoryNotFoundException;
 import com.ibb.yurtlar.exception.EmailAlreadyExistsException;
 import com.ibb.yurtlar.exception.InactiveDormitoryException;
 import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
+import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
 import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DormitoryRepository;
@@ -33,9 +34,14 @@ public class AppUserService {
             DormitoryRepository dormitoryRepository,
             PasswordEncoder passwordEncoder
     ) {
-        this.appUserRepository = appUserRepository;
-        this.dormitoryRepository = dormitoryRepository;
-        this.passwordEncoder = passwordEncoder;
+        this.appUserRepository =
+                appUserRepository;
+
+        this.dormitoryRepository =
+                dormitoryRepository;
+
+        this.passwordEncoder =
+                passwordEncoder;
     }
 
     @Transactional
@@ -74,7 +80,7 @@ public class AppUserService {
         user.setRole(request.role());
         user.setActive(request.active());
 
-        applyAdminConfiguration(
+        applyRoleConfiguration(
                 user,
                 request.role(),
                 request.adminScope(),
@@ -97,7 +103,9 @@ public class AppUserService {
     }
 
     @Transactional(readOnly = true)
-    public UserResponse getById(Long id) {
+    public UserResponse getById(
+            Long id
+    ) {
         return toResponse(
                 findUserById(id)
         );
@@ -139,7 +147,7 @@ public class AppUserService {
         user.setRole(request.role());
         user.setActive(request.active());
 
-        applyAdminConfiguration(
+        applyRoleConfiguration(
                 user,
                 request.role(),
                 request.adminScope(),
@@ -149,24 +157,41 @@ public class AppUserService {
         return toResponse(user);
     }
 
-    private void applyAdminConfiguration(
+    private void applyRoleConfiguration(
             AppUser user,
             Role role,
             AdminScope adminScope,
             Long dormitoryId
     ) {
-        if (role != Role.ADMIN) {
-            validateNonAdminConfiguration(
-                    adminScope,
-                    dormitoryId
-            );
+        switch (role) {
+            case ADMIN ->
+                    configureAdmin(
+                            user,
+                            adminScope,
+                            dormitoryId
+                    );
 
-            user.setAdminScope(null);
-            user.setDormitory(null);
+            case REVIEWER ->
+                    configureReviewer(
+                            user,
+                            adminScope,
+                            dormitoryId
+                    );
 
-            return;
+            case STUDENT ->
+                    configureStudent(
+                            user,
+                            adminScope,
+                            dormitoryId
+                    );
         }
+    }
 
+    private void configureAdmin(
+            AppUser user,
+            AdminScope adminScope,
+            Long dormitoryId
+    ) {
         if (adminScope == null) {
             throw new InvalidAdminConfigurationException(
                     "ADMIN rolündeki kullanıcılar için adminScope zorunludur."
@@ -186,17 +211,6 @@ public class AppUserService {
                 user,
                 dormitoryId
         );
-    }
-
-    private void validateNonAdminConfiguration(
-            AdminScope adminScope,
-            Long dormitoryId
-    ) {
-        if (adminScope != null || dormitoryId != null) {
-            throw new InvalidAdminConfigurationException(
-                    "STUDENT ve REVIEWER kullanıcıları için adminScope ve dormitoryId gönderilemez."
-            );
-        }
     }
 
     private void configureGlobalAdmin(
@@ -227,6 +241,64 @@ public class AppUserService {
         }
 
         Dormitory dormitory =
+                findActiveDormitory(
+                        dormitoryId
+                );
+
+        user.setAdminScope(
+                AdminScope.DORMITORY
+        );
+
+        user.setDormitory(dormitory);
+    }
+
+    private void configureReviewer(
+            AppUser user,
+            AdminScope adminScope,
+            Long dormitoryId
+    ) {
+        if (adminScope != null) {
+            throw new InvalidUserConfigurationException(
+                    "REVIEWER kullanıcısı için adminScope gönderilemez."
+            );
+        }
+
+        if (dormitoryId == null) {
+            throw new InvalidUserConfigurationException(
+                    "REVIEWER kullanıcısı için dormitoryId zorunludur."
+            );
+        }
+
+        Dormitory dormitory =
+                findActiveDormitory(
+                        dormitoryId
+                );
+
+        user.setAdminScope(null);
+        user.setDormitory(dormitory);
+    }
+
+    private void configureStudent(
+            AppUser user,
+            AdminScope adminScope,
+            Long dormitoryId
+    ) {
+        if (adminScope != null
+                || dormitoryId != null) {
+
+            throw new InvalidUserConfigurationException(
+                    "STUDENT kullanıcısı için adminScope ve dormitoryId gönderilemez."
+            );
+        }
+
+        user.setAdminScope(null);
+        user.setDormitory(null);
+    }
+
+    private Dormitory findActiveDormitory(
+            Long dormitoryId
+    ) {
+        Dormitory dormitory =
                 dormitoryRepository
                         .findById(dormitoryId)
                         .orElseThrow(
@@ -241,18 +313,18 @@ public class AppUserService {
             );
         }
 
-        user.setAdminScope(
-                AdminScope.DORMITORY
-        );
-
-        user.setDormitory(dormitory);
+        return dormitory;
     }
 
-    private AppUser findUserById(Long id) {
+    private AppUser findUserById(
+            Long id
+    ) {
         return appUserRepository
                 .findById(id)
                 .orElseThrow(
-                        () -> new UserNotFoundException(id)
+                        () -> new UserNotFoundException(
+                                id
+                        )
                 );
     }
 
