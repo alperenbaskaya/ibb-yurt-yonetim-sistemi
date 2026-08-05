@@ -11,6 +11,10 @@ import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ibb.yurtlar.entity.AppUser;
+import com.ibb.yurtlar.enums.Role;
+import com.ibb.yurtlar.exception.UserIsNotReviewerException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.util.List;
 
@@ -18,10 +22,8 @@ import java.util.List;
 public class ReviewerDashboardService {
 
     private final AppUserRepository appUserRepository;
-    private final StudentDocumentService
-            studentDocumentService;
-    private final DocumentReviewService
-            documentReviewService;
+    private final StudentDocumentService studentDocumentService;
+    private final DocumentReviewService documentReviewService;
 
     public ReviewerDashboardService(
             AppUserRepository appUserRepository,
@@ -108,5 +110,29 @@ public class ReviewerDashboardService {
         }
 
         return reviewer;
+    }
+
+    @Transactional(readOnly = true)
+    public ReviewerDashboardResponse getMyDashboard(
+            String email
+    ) {
+        AppUser reviewer =
+                appUserRepository
+                        .findByNormalizedEmail(email)
+                        .orElseThrow(
+                                () -> new UsernameNotFoundException(
+                                        "Giriş yapan kullanıcı bulunamadı."
+                                )
+                        );
+
+        if (reviewer.getRole() != Role.REVIEWER) {
+            throw new UserIsNotReviewerException(
+                    reviewer.getId()
+            );
+        }
+
+        return getDashboard(
+                reviewer.getId()
+        );
     }
 }
