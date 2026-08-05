@@ -22,6 +22,7 @@ import com.ibb.yurtlar.repository.StudentDocumentRepository;
 import com.ibb.yurtlar.repository.StudentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.util.List;
 
@@ -400,6 +401,30 @@ public class AdminDashboardService {
                 admission.getStatus(),
                 admission.getAdmissionDate(),
                 admission.getCreatedAt()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public AdminDashboardResponse getMyDashboard(
+            String email
+    ) {
+        AppUser admin =
+                appUserRepository
+                        .findByNormalizedEmail(email)
+                        .orElseThrow(
+                                () -> new UsernameNotFoundException(
+                                        "Giriş yapan kullanıcı bulunamadı."
+                                )
+                        );
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new UserIsNotAdminException(
+                    admin.getId()
+            );
+        }
+
+        return getDashboard(
+                admin.getId()
         );
     }
 }

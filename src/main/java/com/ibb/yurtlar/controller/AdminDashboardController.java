@@ -2,11 +2,13 @@ package com.ibb.yurtlar.controller;
 
 import com.ibb.yurtlar.dto.AdminDashboardResponse;
 import com.ibb.yurtlar.service.AdminDashboardService;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@PreAuthorize("hasRole('ADMIN')")
 @RequestMapping("/api/admin-dashboard")
 public class AdminDashboardController {
 
@@ -20,11 +22,14 @@ public class AdminDashboardController {
                 adminDashboardService;
     }
 
-    @GetMapping("/{adminUserId}")
-    public AdminDashboardResponse getDashboard(
-            @PathVariable Long adminUserId
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('ADMIN')")
+    public AdminDashboardResponse getMyDashboard(
+            Authentication authentication
     ) {
         return adminDashboardService
-                .getDashboard(adminUserId);
+                .getMyDashboard(
+                        authentication.getName()
+                );
     }
 }
