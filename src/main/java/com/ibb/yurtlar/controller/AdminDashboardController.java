@@ -3,8 +3,10 @@ package com.ibb.yurtlar.controller;
 import com.ibb.yurtlar.dto.AdminDashboardResponse;
 import com.ibb.yurtlar.service.AdminDashboardService;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
+@PreAuthorize("hasRole('ADMIN')")
 @RequestMapping("/api/admin-dashboard")
 public class AdminDashboardController {
 
