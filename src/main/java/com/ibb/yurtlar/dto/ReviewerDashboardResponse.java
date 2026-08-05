@@ -9,13 +9,16 @@ public record ReviewerDashboardResponse(
         String lastName,
         String email,
 
+        Long dormitoryId,
+        String dormitoryName,
+
         long pendingDocumentCount,
-        long approvedReviewCount,
-        long rejectedReviewCount,
-        long revisionRequiredReviewCount,
+        long approvedDocumentCount,
+        long rejectedDocumentCount,
+        long revisionRequiredDocumentCount,
 
         List<StudentDocumentResponse> oldestPendingDocuments,
-        List<DocumentReviewResponse> recentReviews
+        List<DocumentReviewResponse> recentDormitoryReviews
 
 ) {
 }

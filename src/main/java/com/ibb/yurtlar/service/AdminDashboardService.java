@@ -139,28 +139,28 @@ public class AdminDashboardService {
 
         long pendingDocumentCount =
                 studentDocumentRepository
-                        .countByAdmission_DormitoryTerm_IdAndStatus(
+                        .countByTermAndStatus(
                                 activeTermId,
                                 StudentDocumentStatus.UPLOADED
                         );
 
         long approvedDocumentCount =
                 studentDocumentRepository
-                        .countByAdmission_DormitoryTerm_IdAndStatus(
+                        .countByTermAndStatus(
                                 activeTermId,
                                 StudentDocumentStatus.APPROVED
                         );
 
         long rejectedDocumentCount =
                 studentDocumentRepository
-                        .countByAdmission_DormitoryTerm_IdAndStatus(
+                        .countByTermAndStatus(
                                 activeTermId,
                                 StudentDocumentStatus.REJECTED
                         );
 
         long revisionRequiredDocumentCount =
                 studentDocumentRepository
-                        .countByAdmission_DormitoryTerm_IdAndStatus(
+                        .countByTermAndStatus(
                                 activeTermId,
                                 StudentDocumentStatus.REVISION_REQUIRED
                         );
@@ -259,7 +259,7 @@ public class AdminDashboardService {
 
         long pendingDocumentCount =
                 studentDocumentRepository
-                        .countByAdmission_DormitoryTerm_IdAndAdmission_Dormitory_IdAndStatus(
+                        .countByTermAndDormitoryAndStatus(
                                 activeTermId,
                                 dormitoryId,
                                 StudentDocumentStatus.UPLOADED
@@ -267,7 +267,7 @@ public class AdminDashboardService {
 
         long approvedDocumentCount =
                 studentDocumentRepository
-                        .countByAdmission_DormitoryTerm_IdAndAdmission_Dormitory_IdAndStatus(
+                        .countByTermAndDormitoryAndStatus(
                                 activeTermId,
                                 dormitoryId,
                                 StudentDocumentStatus.APPROVED
@@ -275,7 +275,7 @@ public class AdminDashboardService {
 
         long rejectedDocumentCount =
                 studentDocumentRepository
-                        .countByAdmission_DormitoryTerm_IdAndAdmission_Dormitory_IdAndStatus(
+                        .countByTermAndDormitoryAndStatus(
                                 activeTermId,
                                 dormitoryId,
                                 StudentDocumentStatus.REJECTED
@@ -283,7 +283,7 @@ public class AdminDashboardService {
 
         long revisionRequiredDocumentCount =
                 studentDocumentRepository
-                        .countByAdmission_DormitoryTerm_IdAndAdmission_Dormitory_IdAndStatus(
+                        .countByTermAndDormitoryAndStatus(
                                 activeTermId,
                                 dormitoryId,
                                 StudentDocumentStatus.REVISION_REQUIRED

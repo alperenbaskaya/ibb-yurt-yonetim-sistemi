@@ -1,8 +1,10 @@
 package com.ibb.yurtlar.repository;
 
 import com.ibb.yurtlar.entity.DocumentReview;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import com.ibb.yurtlar.enums.DocumentReviewDecision;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -19,13 +21,26 @@ public interface DocumentReviewRepository
             Long reviewerUserId
     );
 
-    long countByReviewer_IdAndDecision(
-            Long reviewerId,
-            DocumentReviewDecision decision
-    );
-
+    @Query("""
+            SELECT dr
+            FROM DocumentReview dr
+            JOIN FETCH dr.reviewer reviewer
+            JOIN FETCH dr.studentDocument document
+            JOIN FETCH document.documentType documentType
+            JOIN FETCH document.admission admission
+            JOIN FETCH admission.student student
+            JOIN FETCH student.user studentUser
+            JOIN FETCH admission.dormitory dormitory
+            JOIN FETCH admission.dormitoryTerm term
+            WHERE dormitory.id = :dormitoryId
+              AND term.active = true
+            ORDER BY dr.reviewedAt DESC
+            """)
     List<DocumentReview>
-    findTop10ByReviewer_IdOrderByReviewedAtDesc(
-            Long reviewerId
+    findRecentByDormitoryAndActiveTerm(
+            @Param("dormitoryId")
+            Long dormitoryId,
+
+            Pageable pageable
     );
 }

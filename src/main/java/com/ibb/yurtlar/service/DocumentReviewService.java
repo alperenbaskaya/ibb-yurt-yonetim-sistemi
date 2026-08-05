@@ -2,14 +2,23 @@ package com.ibb.yurtlar.service;
 
 import com.ibb.yurtlar.dto.CreateDocumentReviewRequest;
 import com.ibb.yurtlar.dto.DocumentReviewResponse;
-import com.ibb.yurtlar.entity.*;
+import com.ibb.yurtlar.entity.Admission;
+import com.ibb.yurtlar.entity.AppUser;
+import com.ibb.yurtlar.entity.DocumentReview;
+import com.ibb.yurtlar.entity.Student;
+import com.ibb.yurtlar.entity.StudentDocument;
 import com.ibb.yurtlar.enums.DocumentReviewDecision;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.enums.StudentDocumentStatus;
-import com.ibb.yurtlar.exception.*;
+import com.ibb.yurtlar.exception.DocumentNotReadyForReviewException;
+import com.ibb.yurtlar.exception.ReviewCommentRequiredException;
+import com.ibb.yurtlar.exception.StudentDocumentNotFoundException;
+import com.ibb.yurtlar.exception.UserIsNotReviewerException;
+import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DocumentReviewRepository;
 import com.ibb.yurtlar.repository.StudentDocumentRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +33,8 @@ public class DocumentReviewService {
     private final StudentDocumentRepository
             studentDocumentRepository;
 
-    private final AppUserRepository appUserRepository;
+    private final AppUserRepository
+            appUserRepository;
 
     public DocumentReviewService(
             DocumentReviewRepository documentReviewRepository,
@@ -47,7 +57,9 @@ public class DocumentReviewService {
     ) {
         StudentDocument document =
                 studentDocumentRepository
-                        .findById(request.studentDocumentId())
+                        .findById(
+                                request.studentDocumentId()
+                        )
                         .orElseThrow(
                                 () -> new StudentDocumentNotFoundException(
                                         request.studentDocumentId()
@@ -55,7 +67,9 @@ public class DocumentReviewService {
                         );
 
         AppUser reviewer =
-                validateReviewer(request.reviewerUserId());
+                validateReviewer(
+                        request.reviewerUserId()
+                );
 
         if (document.getStatus()
                 != StudentDocumentStatus.UPLOADED) {
@@ -66,7 +80,9 @@ public class DocumentReviewService {
         }
 
         String normalizedComment =
-                normalizeComment(request.comment());
+                normalizeComment(
+                        request.comment()
+                );
 
         validateComment(
                 request.decision(),
@@ -78,8 +94,12 @@ public class DocumentReviewService {
 
         review.setStudentDocument(document);
         review.setReviewer(reviewer);
-        review.setDecision(request.decision());
-        review.setComment(normalizedComment);
+        review.setDecision(
+                request.decision()
+        );
+        review.setComment(
+                normalizedComment
+        );
 
         updateDocumentStatus(
                 document,
@@ -87,9 +107,13 @@ public class DocumentReviewService {
         );
 
         DocumentReview savedReview =
-                documentReviewRepository.save(review);
+                documentReviewRepository.save(
+                        review
+                );
 
-        return toResponse(savedReview);
+        return toResponse(
+                savedReview
+        );
     }
 
     @Transactional(readOnly = true)
@@ -117,7 +141,9 @@ public class DocumentReviewService {
     public List<DocumentReviewResponse> getByReviewerId(
             Long reviewerUserId
     ) {
-        validateReviewer(reviewerUserId);
+        validateReviewer(
+                reviewerUserId
+        );
 
         return documentReviewRepository
                 .findAllByReviewer_IdOrderByReviewedAtDesc(
@@ -129,28 +155,14 @@ public class DocumentReviewService {
     }
 
     @Transactional(readOnly = true)
-    public long countReviewsByDecision(
-            Long reviewerId,
-            DocumentReviewDecision decision
+    public List<DocumentReviewResponse>
+    getRecentReviewsByDormitory(
+            Long dormitoryId
     ) {
-        validateReviewer(reviewerId);
-
         return documentReviewRepository
-                .countByReviewer_IdAndDecision(
-                        reviewerId,
-                        decision
-                );
-    }
-
-    @Transactional(readOnly = true)
-    public List<DocumentReviewResponse> getRecentReviews(
-            Long reviewerId
-    ) {
-        validateReviewer(reviewerId);
-
-        return documentReviewRepository
-                .findTop10ByReviewer_IdOrderByReviewedAtDesc(
-                        reviewerId
+                .findRecentByDormitoryAndActiveTerm(
+                        dormitoryId,
+                        PageRequest.of(0, 10)
                 )
                 .stream()
                 .map(this::toResponse)
@@ -162,7 +174,8 @@ public class DocumentReviewService {
             String comment
     ) {
         boolean commentRequired =
-                decision == DocumentReviewDecision.REJECTED
+                decision
+                        == DocumentReviewDecision.REJECTED
                         || decision
                         == DocumentReviewDecision.REVISION_REQUIRED;
 
@@ -187,15 +200,20 @@ public class DocumentReviewService {
                             StudentDocumentStatus.REVISION_REQUIRED;
                 };
 
-        document.setStatus(newStatus);
+        document.setStatus(
+                newStatus
+        );
     }
 
-    private String normalizeComment(String comment) {
+    private String normalizeComment(
+            String comment
+    ) {
         if (comment == null) {
             return null;
         }
 
-        String trimmedComment = comment.trim();
+        String trimmedComment =
+                comment.trim();
 
         return trimmedComment.isEmpty()
                 ? null
@@ -241,7 +259,9 @@ public class DocumentReviewService {
         );
     }
 
-    private AppUser validateReviewer(Long reviewerId) {
+    private AppUser validateReviewer(
+            Long reviewerId
+    ) {
         AppUser reviewer =
                 appUserRepository
                         .findById(reviewerId)

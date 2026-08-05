@@ -3,10 +3,8 @@ package com.ibb.yurtlar.service;
 import com.ibb.yurtlar.dto.StoredFileInfo;
 import com.ibb.yurtlar.dto.StudentDocumentResponse;
 import com.ibb.yurtlar.entity.Admission;
-import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.DocumentType;
 import com.ibb.yurtlar.entity.DormitoryTerm;
-import com.ibb.yurtlar.entity.Student;
 import com.ibb.yurtlar.entity.StudentDocument;
 import com.ibb.yurtlar.entity.TermDocumentRequirement;
 import com.ibb.yurtlar.enums.AdmissionStatus;
@@ -28,6 +26,7 @@ import com.ibb.yurtlar.dto.DownloadedFile;
 import org.springframework.core.io.Resource;
 import com.ibb.yurtlar.dto.StudentDocumentRequirementStatusResponse;
 import com.ibb.yurtlar.dto.DocumentCompletionResponse;
+import com.ibb.yurtlar.mapper.StudentDocumentMapper;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,22 +36,22 @@ import java.util.Optional;
 @Service
 public class StudentDocumentService {
 
-    private final StudentDocumentRepository
-            studentDocumentRepository;
+    private final StudentDocumentRepository studentDocumentRepository;
 
     private final AdmissionRepository admissionRepository;
 
-    private final TermDocumentRequirementRepository
-            termDocumentRequirementRepository;
+    private final TermDocumentRequirementRepository termDocumentRequirementRepository;
 
     private final FileStorageService fileStorageService;
+
+    private final StudentDocumentMapper studentDocumentMapper;
 
     public StudentDocumentService(
             StudentDocumentRepository studentDocumentRepository,
             AdmissionRepository admissionRepository,
-            TermDocumentRequirementRepository
-                    termDocumentRequirementRepository,
-            FileStorageService fileStorageService
+            TermDocumentRequirementRepository termDocumentRequirementRepository,
+            FileStorageService fileStorageService,
+            StudentDocumentMapper studentDocumentMapper
     ) {
         this.studentDocumentRepository =
                 studentDocumentRepository;
@@ -65,6 +64,10 @@ public class StudentDocumentService {
 
         this.fileStorageService =
                 fileStorageService;
+
+        this.studentDocumentMapper =
+                studentDocumentMapper;
+
     }
 
     @Transactional
@@ -145,17 +148,22 @@ public class StudentDocumentService {
         }
 
         return studentDocumentRepository
-                .findAllByAdmission_IdOrderByDocumentType_NameAsc(
+                .findAllByAdmissionId(
                         admissionId
                 )
                 .stream()
-                .map(this::toResponse)
+                .map(studentDocumentMapper::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public StudentDocumentResponse getById(Long id) {
-        return toResponse(findDocumentById(id));
+    public StudentDocumentResponse getById(
+            Long id
+    ) {
+        return studentDocumentMapper
+                .toResponse(
+                        findDocumentById(id)
+                );
     }
 
     private void validateAdmissionForUpload(
@@ -216,7 +224,8 @@ public class StudentDocumentService {
         StudentDocument savedDocument =
                 studentDocumentRepository.save(document);
 
-        return toResponse(savedDocument);
+        return studentDocumentMapper
+                .toResponse(savedDocument);
     }
 
     private StudentDocumentResponse replaceExistingDocument(
@@ -243,7 +252,8 @@ public class StudentDocumentService {
 
         fileStorageService.delete(oldFilePath);
 
-        return toResponse(document);
+        return studentDocumentMapper
+        .toResponse(document);
     }
 
     private void applyStoredFileInfo(
@@ -281,48 +291,6 @@ public class StudentDocumentService {
                 );
     }
 
-    private StudentDocumentResponse toResponse(
-            StudentDocument document
-    ) {
-        Admission admission =
-                document.getAdmission();
-
-        Student student =
-                admission.getStudent();
-
-        AppUser user =
-                student.getUser();
-
-        DormitoryTerm term =
-                admission.getDormitoryTerm();
-
-        DocumentType documentType =
-                document.getDocumentType();
-
-        return new StudentDocumentResponse(
-                document.getId(),
-
-                admission.getId(),
-                student.getId(),
-                user.getFirstName(),
-                user.getLastName(),
-
-                term.getId(),
-                term.getName(),
-
-                documentType.getId(),
-                documentType.getName(),
-
-                document.getOriginalFileName(),
-                document.getContentType(),
-                document.getFileSize(),
-
-                document.getStatus(),
-                document.getUploadedAt(),
-                document.getUpdatedAt()
-        );
-    }
-
     @Transactional(readOnly = true)
     public DownloadedFile download(Long id) {
         StudentDocument document =
@@ -347,7 +315,7 @@ public class StudentDocumentService {
                         StudentDocumentStatus.UPLOADED
                 )
                 .stream()
-                .map(this::toResponse)
+                .map(studentDocumentMapper::toResponse)
                 .toList();
     }
 
@@ -372,7 +340,7 @@ public class StudentDocumentService {
 
         List<StudentDocument> uploadedDocuments =
                 studentDocumentRepository
-                        .findAllByAdmission_IdOrderByDocumentType_NameAsc(
+                        .findAllByAdmissionId(
                                 admissionId
                         );
 
@@ -488,7 +456,7 @@ public class StudentDocumentService {
                         StudentDocumentStatus.UPLOADED
                 )
                 .stream()
-                .map(this::toResponse)
+                .map(studentDocumentMapper::toResponse)
                 .toList();
     }
 
