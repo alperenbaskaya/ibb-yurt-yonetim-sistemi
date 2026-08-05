@@ -29,32 +29,37 @@ public class StudentDashboardService {
             AdmissionRepository admissionRepository,
             StudentDocumentService studentDocumentService
     ) {
-        this.studentRepository = studentRepository;
-        this.admissionRepository = admissionRepository;
-        this.studentDocumentService = studentDocumentService;
+        this.studentRepository =
+                studentRepository;
+
+        this.admissionRepository =
+                admissionRepository;
+
+        this.studentDocumentService =
+                studentDocumentService;
     }
 
     @Transactional(readOnly = true)
-    public StudentDashboardResponse getDashboard(
-            Long studentId
+    public StudentDashboardResponse getMyDashboard(
+            String email
     ) {
         Student student =
                 studentRepository
-                        .findById(studentId)
+                        .findByUserEmail(email)
                         .orElseThrow(
                                 () -> new StudentNotFoundException(
-                                        studentId
+                                        null
                                 )
                         );
 
         Admission admission =
                 admissionRepository
                         .findByStudent_IdAndDormitoryTerm_ActiveTrue(
-                                studentId
+                                student.getId()
                         )
                         .orElseThrow(
                                 () -> new ActiveAdmissionNotFoundException(
-                                        studentId
+                                        student.getId()
                                 )
                         );
 

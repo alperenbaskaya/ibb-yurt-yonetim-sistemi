@@ -2,11 +2,13 @@ package com.ibb.yurtlar.controller;
 
 import com.ibb.yurtlar.dto.StudentDashboardResponse;
 import com.ibb.yurtlar.service.StudentDashboardService;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@PreAuthorize("hasRole('STUDENT')")
 @RequestMapping("/api/student-dashboard")
 public class StudentDashboardController {
 
@@ -20,11 +22,14 @@ public class StudentDashboardController {
                 studentDashboardService;
     }
 
-    @GetMapping("/{studentId}")
-    public StudentDashboardResponse getDashboard(
-            @PathVariable Long studentId
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('STUDENT')")
+    public StudentDashboardResponse getMyDashboard(
+            Authentication authentication
     ) {
         return studentDashboardService
-                .getDashboard(studentId);
+                .getMyDashboard(
+                        authentication.getName()
+                );
     }
 }
