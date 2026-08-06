@@ -17,6 +17,7 @@ import com.ibb.yurtlar.exception.InactiveDocumentTypeException;
 import com.ibb.yurtlar.exception.InactiveDormitoryTermException;
 import com.ibb.yurtlar.exception.StudentDocumentNotFoundException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
+import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.StudentDocumentRepository;
 import com.ibb.yurtlar.repository.TermDocumentRequirementRepository;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,13 @@ import com.ibb.yurtlar.dto.StudentDocumentRequirementStatusResponse;
 import com.ibb.yurtlar.dto.DocumentCompletionResponse;
 import com.ibb.yurtlar.mapper.StudentDocumentMapper;
 import com.ibb.yurtlar.exception.ActiveAdmissionNotFoundForCurrentStudentException;
+import com.ibb.yurtlar.repository.AppUserRepository;
+import com.ibb.yurtlar.entity.AppUser;
+import com.ibb.yurtlar.entity.Dormitory;
+import com.ibb.yurtlar.enums.AdminScope;
+import com.ibb.yurtlar.exception.InvalidCredentialsException;
+import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
+import com.ibb.yurtlar.exception.StudentDocumentAccessDeniedException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -47,12 +55,15 @@ public class StudentDocumentService {
 
     private final StudentDocumentMapper studentDocumentMapper;
 
+    private final AppUserRepository appUserRepository;
+
     public StudentDocumentService(
             StudentDocumentRepository studentDocumentRepository,
             AdmissionRepository admissionRepository,
             TermDocumentRequirementRepository termDocumentRequirementRepository,
             FileStorageService fileStorageService,
-            StudentDocumentMapper studentDocumentMapper
+            StudentDocumentMapper studentDocumentMapper,
+            AppUserRepository appUserRepository
     ) {
         this.studentDocumentRepository =
                 studentDocumentRepository;
@@ -69,6 +80,8 @@ public class StudentDocumentService {
         this.studentDocumentMapper =
                 studentDocumentMapper;
 
+        this.appUserRepository = appUserRepository;
+
     }
 
     @Transactional
@@ -78,13 +91,9 @@ public class StudentDocumentService {
             MultipartFile file
     ) {
         Admission admission =
-                admissionRepository
-                        .findActiveAdmissionByStudentEmail(
-                                studentEmail
-                        )
-                        .orElseThrow(
-                                ActiveAdmissionNotFoundForCurrentStudentException::new
-                        );
+                findActiveAdmissionByStudentEmail(
+                        studentEmail
+                );
 
         validateAdmissionForUpload(
                 admission
@@ -161,12 +170,28 @@ public class StudentDocumentService {
     }
 
     @Transactional(readOnly = true)
-    public StudentDocumentResponse getById(
-            Long id
+    public StudentDocumentResponse getByIdForAuthenticatedUser(
+            Long documentId,
+            String authenticatedEmail
     ) {
+        StudentDocument document =
+                findDocumentById(
+                        documentId
+                );
+
+        AppUser authenticatedUser =
+                findAuthenticatedUser(
+                        authenticatedEmail
+                );
+
+        validateDocumentAccess(
+                authenticatedUser,
+                document
+        );
+
         return studentDocumentMapper
                 .toResponse(
-                        findDocumentById(id)
+                        document
                 );
     }
 
@@ -296,9 +321,24 @@ public class StudentDocumentService {
     }
 
     @Transactional(readOnly = true)
-    public DownloadedFile download(Long id) {
+    public DownloadedFile downloadForAuthenticatedUser(
+            Long documentId,
+            String authenticatedEmail
+    ) {
         StudentDocument document =
-                findDocumentById(id);
+                findDocumentById(
+                        documentId
+                );
+
+        AppUser authenticatedUser =
+                findAuthenticatedUser(
+                        authenticatedEmail
+                );
+
+        validateDocumentAccess(
+                authenticatedUser,
+                document
+        );
 
         Resource resource =
                 fileStorageService.loadAsResource(
@@ -470,5 +510,180 @@ public class StudentDocumentService {
                 .countByStatus(
                         StudentDocumentStatus.UPLOADED
                 );
+    }
+
+    @Transactional(readOnly = true)
+    public List<StudentDocumentResponse> getMyDocuments(
+            String studentEmail
+    ) {
+        Admission admission =
+                findActiveAdmissionByStudentEmail(
+                        studentEmail
+                );
+
+        return studentDocumentRepository
+                .findAllByAdmissionId(
+                        admission.getId()
+                )
+                .stream()
+                .map(studentDocumentMapper::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<StudentDocumentRequirementStatusResponse>
+    getMyRequirementStatuses(
+            String studentEmail
+    ) {
+        Admission admission =
+                findActiveAdmissionByStudentEmail(
+                        studentEmail
+                );
+
+        return getRequirementStatusesByAdmissionId(
+                admission.getId()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentCompletionResponse getMyCompletionStatus(
+            String studentEmail
+    ) {
+        Admission admission =
+                findActiveAdmissionByStudentEmail(
+                        studentEmail
+                );
+
+        return getCompletionStatus(
+                admission.getId()
+        );
+    }
+
+    private Admission findActiveAdmissionByStudentEmail(
+            String studentEmail
+    ) {
+        return admissionRepository
+                .findActiveAdmissionByStudentEmail(
+                        studentEmail
+                )
+                .orElseThrow(
+                        ActiveAdmissionNotFoundForCurrentStudentException::new
+                );
+    }
+
+    private AppUser findAuthenticatedUser(
+            String email
+    ) {
+        return appUserRepository
+                .findByNormalizedEmail(
+                        email
+                )
+                .orElseThrow(
+                        InvalidCredentialsException::new
+                );
+    }
+
+    private void validateDocumentAccess(
+            AppUser authenticatedUser,
+            StudentDocument document
+    ) {
+        switch (authenticatedUser.getRole()) {
+
+            case STUDENT ->
+                    validateStudentDocumentOwnership(
+                            authenticatedUser,
+                            document
+                    );
+
+            case REVIEWER ->
+                    validateDormitoryAccess(
+                            authenticatedUser,
+                            document
+                    );
+
+            case ADMIN ->
+                    validateAdminDocumentAccess(
+                            authenticatedUser,
+                            document
+                    );
+        }
+    }
+
+    private void validateStudentDocumentOwnership(
+            AppUser authenticatedUser,
+            StudentDocument document
+    ) {
+        AppUser documentOwner =
+                document
+                        .getAdmission()
+                        .getStudent()
+                        .getUser();
+
+        boolean ownsDocument =
+                authenticatedUser
+                        .getId()
+                        .equals(
+                                documentOwner.getId()
+                        );
+
+        if (!ownsDocument) {
+            throw new StudentDocumentAccessDeniedException(
+                    document.getId()
+            );
+        }
+    }
+
+    private void validateDormitoryAccess(
+            AppUser authenticatedUser,
+            StudentDocument document
+    ) {
+        Dormitory userDormitory =
+                authenticatedUser.getDormitory();
+
+        Dormitory documentDormitory =
+                document
+                        .getAdmission()
+                        .getDormitory();
+
+        boolean sameDormitory =
+                userDormitory != null
+                        && documentDormitory != null
+                        && userDormitory
+                        .getId()
+                        .equals(
+                                documentDormitory.getId()
+                        );
+
+        if (!sameDormitory) {
+            throw new StudentDocumentAccessDeniedException(
+                    document.getId()
+            );
+        }
+    }
+
+    private void validateAdminDocumentAccess(
+            AppUser admin,
+            StudentDocument document
+    ) {
+        if (admin.getAdminScope()
+                == AdminScope.GLOBAL) {
+
+            return;
+        }
+
+        if (admin.getAdminScope()
+                == AdminScope.DORMITORY) {
+
+            validateDormitoryAccess(
+                    admin,
+                    document
+            );
+
+            return;
+        }
+
+        throw new InvalidAdminConfigurationException(
+                "Admin kullanıcısının yetki kapsamı geçersizdir."
+        );
     }
 }

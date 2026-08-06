@@ -50,15 +50,60 @@ public class StudentDocumentController {
                 );
     }
 
-    @GetMapping("/{id}")
-    public StudentDocumentResponse getById(
-            @PathVariable Long id
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('STUDENT')")
+    public List<StudentDocumentResponse> getMyDocuments(
+            Authentication authentication
     ) {
         return studentDocumentService
-                .getById(id);
+                .getMyDocuments(
+                        authentication.getName()
+                );
+    }
+
+    @GetMapping("/me/requirements")
+    @PreAuthorize("hasRole('STUDENT')")
+    public List<StudentDocumentRequirementStatusResponse>
+    getMyRequirementStatuses(
+            Authentication authentication
+    ) {
+        return studentDocumentService
+                .getMyRequirementStatuses(
+                        authentication.getName()
+                );
+    }
+
+    @GetMapping("/me/completion")
+    @PreAuthorize("hasRole('STUDENT')")
+    public DocumentCompletionResponse
+    getMyCompletionStatus(
+            Authentication authentication
+    ) {
+        return studentDocumentService
+                .getMyCompletionStatus(
+                        authentication.getName()
+                );
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize(
+            "hasAnyRole('ADMIN', 'REVIEWER', 'STUDENT')"
+    )
+    public StudentDocumentResponse getById(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        return studentDocumentService
+                .getByIdForAuthenticatedUser(
+                        id,
+                        authentication.getName()
+                );
     }
 
     @GetMapping("/admission/{admissionId}")
+    @PreAuthorize(
+            "hasAnyRole('ADMIN', 'REVIEWER')"
+    )
     public List<StudentDocumentResponse>
     getByAdmissionId(
             @PathVariable Long admissionId
@@ -70,19 +115,27 @@ public class StudentDocumentController {
     }
 
     @GetMapping("/{id}/download")
+    @PreAuthorize(
+            "hasAnyRole('ADMIN', 'REVIEWER', 'STUDENT')"
+    )
     public ResponseEntity<Resource> download(
-            @PathVariable Long id
+            @PathVariable Long id,
+            Authentication authentication
     ) {
         DownloadedFile downloadedFile =
                 studentDocumentService
-                        .download(id);
+                        .downloadForAuthenticatedUser(
+                                id,
+                                authentication.getName()
+                        );
 
         MediaType mediaType;
 
         try {
-            mediaType = MediaType.parseMediaType(
-                    downloadedFile.contentType()
-            );
+            mediaType =
+                    MediaType.parseMediaType(
+                            downloadedFile.contentType()
+                    );
         } catch (Exception exception) {
             mediaType =
                     MediaType.APPLICATION_OCTET_STREAM;
@@ -103,6 +156,7 @@ public class StudentDocumentController {
     }
 
     @GetMapping("/pending")
+    @PreAuthorize("hasRole('REVIEWER')")
     public List<StudentDocumentResponse>
     getPendingDocuments() {
         return studentDocumentService
@@ -111,6 +165,9 @@ public class StudentDocumentController {
 
     @GetMapping(
             "/admission/{admissionId}/requirements"
+    )
+    @PreAuthorize(
+            "hasAnyRole('ADMIN', 'REVIEWER')"
     )
     public List<StudentDocumentRequirementStatusResponse>
     getRequirementStatusesByAdmissionId(
@@ -124,6 +181,9 @@ public class StudentDocumentController {
 
     @GetMapping(
             "/admission/{admissionId}/completion"
+    )
+    @PreAuthorize(
+            "hasAnyRole('ADMIN', 'REVIEWER')"
     )
     public DocumentCompletionResponse getCompletionStatus(
             @PathVariable Long admissionId
