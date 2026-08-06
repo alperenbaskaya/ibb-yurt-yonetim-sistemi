@@ -182,4 +182,27 @@ public interface StudentDocumentRepository
 
             Pageable pageable
     );
+
+    @Query("""
+        SELECT sd
+        FROM StudentDocument sd
+        JOIN FETCH sd.admission admission
+        JOIN FETCH admission.student student
+        JOIN FETCH student.user studentUser
+        JOIN FETCH admission.dormitory dormitory
+        JOIN FETCH admission.dormitoryTerm term
+        JOIN FETCH sd.documentType documentType
+        WHERE dormitory.id = :dormitoryId
+          AND term.active = true
+          AND sd.status = :status
+        ORDER BY sd.uploadedAt ASC
+        """)
+    List<StudentDocument>
+    findAllByActiveTermAndDormitoryAndStatus(
+            @Param("dormitoryId")
+            Long dormitoryId,
+
+            @Param("status")
+            StudentDocumentStatus status
+    );
 }

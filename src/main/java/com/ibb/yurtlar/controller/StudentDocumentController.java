@@ -158,9 +158,13 @@ public class StudentDocumentController {
     @GetMapping("/pending")
     @PreAuthorize("hasRole('REVIEWER')")
     public List<StudentDocumentResponse>
-    getPendingDocuments() {
+    getPendingDocuments(
+            Authentication authentication
+    ) {
         return studentDocumentService
-                .getPendingDocuments();
+                .getPendingDocumentsForReviewer(
+                        authentication.getName()
+                );
     }
 
     @GetMapping(

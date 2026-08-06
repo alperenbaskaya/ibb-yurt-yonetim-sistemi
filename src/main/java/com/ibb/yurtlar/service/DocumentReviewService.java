@@ -125,16 +125,29 @@ public class DocumentReviewService {
     }
 
     @Transactional(readOnly = true)
-    public List<DocumentReviewResponse> getByDocumentId(
-            Long studentDocumentId
+    public List<DocumentReviewResponse>
+    getByDocumentIdForReviewer(
+            Long studentDocumentId,
+            String reviewerEmail
     ) {
-        if (!studentDocumentRepository
-                .existsById(studentDocumentId)) {
+        StudentDocument document =
+                studentDocumentRepository
+                        .findById(studentDocumentId)
+                        .orElseThrow(
+                                () -> new StudentDocumentNotFoundException(
+                                        studentDocumentId
+                                )
+                        );
 
-            throw new StudentDocumentNotFoundException(
-                    studentDocumentId
-            );
-        }
+        AppUser reviewer =
+                validateReviewerByEmail(
+                        reviewerEmail
+                );
+
+        validateReviewerDormitoryAccess(
+                reviewer,
+                document
+        );
 
         return documentReviewRepository
                 .findAllByStudentDocument_IdOrderByReviewedAtDesc(
@@ -146,16 +159,17 @@ public class DocumentReviewService {
     }
 
     @Transactional(readOnly = true)
-    public List<DocumentReviewResponse> getByReviewerId(
-            Long reviewerUserId
+    public List<DocumentReviewResponse> getMyReviews(
+            String reviewerEmail
     ) {
-        validateReviewer(
-                reviewerUserId
-        );
+        AppUser reviewer =
+                validateReviewerByEmail(
+                        reviewerEmail
+                );
 
         return documentReviewRepository
                 .findAllByReviewer_IdOrderByReviewedAtDesc(
-                        reviewerUserId
+                        reviewer.getId()
                 )
                 .stream()
                 .map(this::toResponse)

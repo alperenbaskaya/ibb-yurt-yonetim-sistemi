@@ -29,13 +29,15 @@ import com.ibb.yurtlar.dto.StudentDocumentRequirementStatusResponse;
 import com.ibb.yurtlar.dto.DocumentCompletionResponse;
 import com.ibb.yurtlar.mapper.StudentDocumentMapper;
 import com.ibb.yurtlar.exception.ActiveAdmissionNotFoundForCurrentStudentException;
-import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.Dormitory;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.exception.InvalidCredentialsException;
 import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
 import com.ibb.yurtlar.exception.StudentDocumentAccessDeniedException;
+import com.ibb.yurtlar.enums.Role;
+import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
+import com.ibb.yurtlar.exception.UserIsNotReviewerException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -353,9 +355,33 @@ public class StudentDocumentService {
     }
 
     @Transactional(readOnly = true)
-    public List<StudentDocumentResponse> getPendingDocuments() {
+    public List<StudentDocumentResponse>
+    getPendingDocumentsForReviewer(
+            String reviewerEmail
+    ) {
+        AppUser reviewer =
+                findAuthenticatedUser(
+                        reviewerEmail
+                );
+
+        if (reviewer.getRole() != Role.REVIEWER) {
+            throw new UserIsNotReviewerException(
+                    reviewer.getId()
+            );
+        }
+
+        Dormitory reviewerDormitory =
+                reviewer.getDormitory();
+
+        if (reviewerDormitory == null) {
+            throw new InvalidUserConfigurationException(
+                    "Reviewer kullanıcısına bir yurt atanmamıştır."
+            );
+        }
+
         return studentDocumentRepository
-                .findAllByStatusOrderByUploadedAtAsc(
+                .findAllByActiveTermAndDormitoryAndStatus(
+                        reviewerDormitory.getId(),
                         StudentDocumentStatus.UPLOADED
                 )
                 .stream()

@@ -43,19 +43,27 @@ public class DocumentReviewController {
 
     @GetMapping("/document/{studentDocumentId}")
     @PreAuthorize("hasRole('REVIEWER')")
-    public List<DocumentReviewResponse> getByDocumentId(
-            @PathVariable Long studentDocumentId
+    public List<DocumentReviewResponse>
+    getByDocumentId(
+            @PathVariable Long studentDocumentId,
+            Authentication authentication
     ) {
         return documentReviewService
-                .getByDocumentId(studentDocumentId);
+                .getByDocumentIdForReviewer(
+                        studentDocumentId,
+                        authentication.getName()
+                );
     }
 
-    @GetMapping("/reviewer/{reviewerUserId}")
+    @GetMapping("/me")
     @PreAuthorize("hasRole('REVIEWER')")
-    public List<DocumentReviewResponse> getByReviewerId(
-            @PathVariable Long reviewerUserId
+    public List<DocumentReviewResponse>
+    getMyReviews(
+            Authentication authentication
     ) {
         return documentReviewService
-                .getByReviewerId(reviewerUserId);
+                .getMyReviews(
+                        authentication.getName()
+                );
     }
 }
