@@ -106,11 +106,13 @@ public class StudentDocumentController {
     )
     public List<StudentDocumentResponse>
     getByAdmissionId(
-            @PathVariable Long admissionId
+            @PathVariable Long admissionId,
+            Authentication authentication
     ) {
         return studentDocumentService
-                .getByAdmissionId(
-                        admissionId
+                .getByAdmissionIdForAuthenticatedUser(
+                        admissionId,
+                        authentication.getName()
                 );
     }
 
@@ -175,11 +177,13 @@ public class StudentDocumentController {
     )
     public List<StudentDocumentRequirementStatusResponse>
     getRequirementStatusesByAdmissionId(
-            @PathVariable Long admissionId
+            @PathVariable Long admissionId,
+            Authentication authentication
     ) {
         return studentDocumentService
-                .getRequirementStatusesByAdmissionId(
-                        admissionId
+                .getRequirementStatusesForAuthenticatedUser(
+                        admissionId,
+                        authentication.getName()
                 );
     }
 
@@ -190,11 +194,13 @@ public class StudentDocumentController {
             "hasAnyRole('ADMIN', 'REVIEWER')"
     )
     public DocumentCompletionResponse getCompletionStatus(
-            @PathVariable Long admissionId
+            @PathVariable Long admissionId,
+            Authentication authentication
     ) {
         return studentDocumentService
-                .getCompletionStatus(
-                        admissionId
+                .getCompletionStatusForAuthenticatedUser(
+                        admissionId,
+                        authentication.getName()
                 );
     }
 }

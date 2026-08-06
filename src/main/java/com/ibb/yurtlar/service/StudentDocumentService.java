@@ -38,6 +38,7 @@ import com.ibb.yurtlar.exception.StudentDocumentAccessDeniedException;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
 import com.ibb.yurtlar.exception.UserIsNotReviewerException;
+import com.ibb.yurtlar.exception.AdmissionAccessDeniedException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -393,10 +394,9 @@ public class StudentDocumentService {
     public List<StudentDocumentRequirementStatusResponse>
     getRequirementStatusesByAdmissionId(Long admissionId) {
 
-        Admission admission = admissionRepository
-                .findById(admissionId)
-                .orElseThrow(
-                        () -> new AdmissionNotFoundException(admissionId)
+        Admission admission =
+                findAdmissionById(
+                        admissionId
                 );
 
         Long dormitoryTermId =
@@ -703,6 +703,179 @@ public class StudentDocumentService {
             validateDormitoryAccess(
                     admin,
                     document
+            );
+
+            return;
+        }
+
+        throw new InvalidAdminConfigurationException(
+                "Admin kullanıcısının yetki kapsamı geçersizdir."
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<StudentDocumentResponse>
+    getByAdmissionIdForAuthenticatedUser(
+            Long admissionId,
+            String authenticatedEmail
+    ) {
+        Admission admission =
+                findAdmissionById(
+                        admissionId
+                );
+
+        AppUser authenticatedUser =
+                findAuthenticatedUser(
+                        authenticatedEmail
+                );
+
+        validateAdmissionAccess(
+                authenticatedUser,
+                admission
+        );
+
+        return studentDocumentRepository
+                .findAllByAdmissionId(
+                        admissionId
+                )
+                .stream()
+                .map(studentDocumentMapper::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<StudentDocumentRequirementStatusResponse>
+    getRequirementStatusesForAuthenticatedUser(
+            Long admissionId,
+            String authenticatedEmail
+    ) {
+        Admission admission =
+                findAdmissionById(
+                        admissionId
+                );
+
+        AppUser authenticatedUser =
+                findAuthenticatedUser(
+                        authenticatedEmail
+                );
+
+        validateAdmissionAccess(
+                authenticatedUser,
+                admission
+        );
+
+        return getRequirementStatusesByAdmissionId(
+                admissionId
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentCompletionResponse
+    getCompletionStatusForAuthenticatedUser(
+            Long admissionId,
+            String authenticatedEmail
+    ) {
+        Admission admission =
+                findAdmissionById(
+                        admissionId
+                );
+
+        AppUser authenticatedUser =
+                findAuthenticatedUser(
+                        authenticatedEmail
+                );
+
+        validateAdmissionAccess(
+                authenticatedUser,
+                admission
+        );
+
+        return getCompletionStatus(
+                admissionId
+        );
+    }
+
+    private Admission findAdmissionById(
+            Long admissionId
+    ) {
+        return admissionRepository
+                .findById(
+                        admissionId
+                )
+                .orElseThrow(
+                        () -> new AdmissionNotFoundException(
+                                admissionId
+                        )
+                );
+    }
+
+    private void validateAdmissionAccess(
+            AppUser authenticatedUser,
+            Admission admission
+    ) {
+        switch (authenticatedUser.getRole()) {
+
+            case REVIEWER ->
+                    validateUserDormitoryMatchesAdmission(
+                            authenticatedUser,
+                            admission
+                    );
+
+            case ADMIN ->
+                    validateAdminAdmissionAccess(
+                            authenticatedUser,
+                            admission
+                    );
+
+            case STUDENT ->
+                    throw new StudentDocumentAccessDeniedException(
+                            admission.getId()
+                    );
+        }
+    }
+
+    private void validateUserDormitoryMatchesAdmission(
+            AppUser authenticatedUser,
+            Admission admission
+    ) {
+        Dormitory userDormitory =
+                authenticatedUser.getDormitory();
+
+        Dormitory admissionDormitory =
+                admission.getDormitory();
+
+        boolean sameDormitory =
+                userDormitory != null
+                        && admissionDormitory != null
+                        && userDormitory
+                        .getId()
+                        .equals(
+                                admissionDormitory.getId()
+                        );
+
+        if (!sameDormitory) {
+            throw new AdmissionAccessDeniedException(
+                    admission.getId()
+            );
+        }
+    }
+
+    private void validateAdminAdmissionAccess(
+            AppUser admin,
+            Admission admission
+    ) {
+        if (admin.getAdminScope()
+                == AdminScope.GLOBAL) {
+
+            return;
+        }
+
+        if (admin.getAdminScope()
+                == AdminScope.DORMITORY) {
+
+            validateUserDormitoryMatchesAdmission(
+                    admin,
+                    admission
             );
 
             return;
