@@ -27,6 +27,7 @@ import org.springframework.core.io.Resource;
 import com.ibb.yurtlar.dto.StudentDocumentRequirementStatusResponse;
 import com.ibb.yurtlar.dto.DocumentCompletionResponse;
 import com.ibb.yurtlar.mapper.StudentDocumentMapper;
+import com.ibb.yurtlar.exception.ActiveAdmissionNotFoundForCurrentStudentException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -71,20 +72,23 @@ public class StudentDocumentService {
     }
 
     @Transactional
-    public StudentDocumentResponse upload(
-            Long admissionId,
+    public StudentDocumentResponse uploadMyDocument(
+            String studentEmail,
             Long documentTypeId,
             MultipartFile file
     ) {
-        Admission admission = admissionRepository
-                .findById(admissionId)
-                .orElseThrow(
-                        () -> new AdmissionNotFoundException(
-                                admissionId
+        Admission admission =
+                admissionRepository
+                        .findActiveAdmissionByStudentEmail(
+                                studentEmail
                         )
-                );
+                        .orElseThrow(
+                                ActiveAdmissionNotFoundForCurrentStudentException::new
+                        );
 
-        validateAdmissionForUpload(admission);
+        validateAdmissionForUpload(
+                admission
+        );
 
         DormitoryTerm term =
                 admission.getDormitoryTerm();

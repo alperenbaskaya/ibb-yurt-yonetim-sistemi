@@ -1,17 +1,19 @@
 package com.ibb.yurtlar.controller;
 
+import com.ibb.yurtlar.dto.DocumentCompletionResponse;
+import com.ibb.yurtlar.dto.DownloadedFile;
+import com.ibb.yurtlar.dto.StudentDocumentRequirementStatusResponse;
 import com.ibb.yurtlar.dto.StudentDocumentResponse;
 import com.ibb.yurtlar.service.StudentDocumentService;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-import com.ibb.yurtlar.dto.DownloadedFile;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import com.ibb.yurtlar.dto.StudentDocumentRequirementStatusResponse;
-import com.ibb.yurtlar.dto.DocumentCompletionResponse;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -30,27 +32,30 @@ public class StudentDocumentController {
     }
 
     @PostMapping(
-            value = "/upload",
+            value = "/me/upload",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
     @ResponseStatus(HttpStatus.CREATED)
-    public StudentDocumentResponse upload(
-            @RequestParam Long admissionId,
+    @PreAuthorize("hasRole('STUDENT')")
+    public StudentDocumentResponse uploadMyDocument(
             @RequestParam Long documentTypeId,
-            @RequestPart("file") MultipartFile file
+            @RequestPart("file") MultipartFile file,
+            Authentication authentication
     ) {
-        return studentDocumentService.upload(
-                admissionId,
-                documentTypeId,
-                file
-        );
+        return studentDocumentService
+                .uploadMyDocument(
+                        authentication.getName(),
+                        documentTypeId,
+                        file
+                );
     }
 
     @GetMapping("/{id}")
     public StudentDocumentResponse getById(
             @PathVariable Long id
     ) {
-        return studentDocumentService.getById(id);
+        return studentDocumentService
+                .getById(id);
     }
 
     @GetMapping("/admission/{admissionId}")
@@ -59,7 +64,9 @@ public class StudentDocumentController {
             @PathVariable Long admissionId
     ) {
         return studentDocumentService
-                .getByAdmissionId(admissionId);
+                .getByAdmissionId(
+                        admissionId
+                );
     }
 
     @GetMapping("/{id}/download")
@@ -67,33 +74,44 @@ public class StudentDocumentController {
             @PathVariable Long id
     ) {
         DownloadedFile downloadedFile =
-                studentDocumentService.download(id);
+                studentDocumentService
+                        .download(id);
 
         MediaType mediaType;
 
         try {
-            mediaType = MediaType.parseMediaType(downloadedFile.contentType()
+            mediaType = MediaType.parseMediaType(
+                    downloadedFile.contentType()
             );
         } catch (Exception exception) {
-            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+            mediaType =
+                    MediaType.APPLICATION_OCTET_STREAM;
         }
 
-        return ResponseEntity.ok()
+        return ResponseEntity
+                .ok()
                 .contentType(mediaType)
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         "inline; filename=\""
                                 + downloadedFile.originalFileName()
                                 + "\""
-                ).body(downloadedFile.resource());
+                )
+                .body(
+                        downloadedFile.resource()
+                );
     }
 
     @GetMapping("/pending")
-    public List<StudentDocumentResponse> getPendingDocuments() {
-        return studentDocumentService.getPendingDocuments();
+    public List<StudentDocumentResponse>
+    getPendingDocuments() {
+        return studentDocumentService
+                .getPendingDocuments();
     }
 
-    @GetMapping("/admission/{admissionId}/requirements")
+    @GetMapping(
+            "/admission/{admissionId}/requirements"
+    )
     public List<StudentDocumentRequirementStatusResponse>
     getRequirementStatusesByAdmissionId(
             @PathVariable Long admissionId
@@ -104,11 +122,15 @@ public class StudentDocumentController {
                 );
     }
 
-    @GetMapping("/admission/{admissionId}/completion")
+    @GetMapping(
+            "/admission/{admissionId}/completion"
+    )
     public DocumentCompletionResponse getCompletionStatus(
             @PathVariable Long admissionId
     ) {
         return studentDocumentService
-                .getCompletionStatus(admissionId);
+                .getCompletionStatus(
+                        admissionId
+                );
     }
 }

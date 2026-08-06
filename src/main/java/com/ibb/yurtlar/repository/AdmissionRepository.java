@@ -5,7 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.ibb.yurtlar.enums.AdmissionStatus;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import com.ibb.yurtlar.enums.AdmissionStatus;
 import java.util.Optional;
 
 import java.util.List;
@@ -70,6 +69,21 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
     findTop10ByDormitoryTerm_IdAndDormitory_IdOrderByCreatedAtDesc(
             Long dormitoryTermId,
             Long dormitoryId
+    );
+
+    @Query("""
+        SELECT a
+        FROM Admission a
+        JOIN FETCH a.student student
+        JOIN FETCH student.user user
+        JOIN FETCH a.dormitoryTerm term
+        JOIN FETCH a.dormitory dormitory
+        WHERE LOWER(TRIM(user.email))
+              = LOWER(TRIM(:email))
+          AND term.active = true
+        """)
+    Optional<Admission> findActiveAdmissionByStudentEmail(
+            @Param("email") String email
     );
 
 }

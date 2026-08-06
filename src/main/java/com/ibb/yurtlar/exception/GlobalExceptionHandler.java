@@ -83,7 +83,7 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
-        exception.printStackTrace();
+    //exception.printStackTrace();
         ApiError apiError = createApiError(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Beklenmeyen bir hata oluştu.",
@@ -750,6 +750,26 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
+                .body(apiError);
+    }
+
+    @ExceptionHandler(
+            ActiveAdmissionNotFoundForCurrentStudentException.class
+    )
+    public ResponseEntity<ApiError>
+    handleActiveAdmissionNotFoundForCurrentStudent(
+            ActiveAdmissionNotFoundForCurrentStudentException exception,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = createApiError(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
                 .body(apiError);
     }
 
