@@ -18,6 +18,9 @@ import com.ibb.yurtlar.repository.DormitoryRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ibb.yurtlar.exception.InvalidCredentialsException;
+import com.ibb.yurtlar.exception.UserIsNotAdminException;
+import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 
 import java.util.List;
 import java.util.Locale;
@@ -46,20 +49,36 @@ public class AppUserService {
 
     @Transactional
     public UserResponse create(
-            CreateUserRequest request
+            CreateUserRequest request,
+            String adminEmail
     ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
+
+        validateCreatePermission(
+                admin,
+                request
+        );
+
         String normalizedEmail =
-                normalizeEmail(request.email());
+                normalizeEmail(
+                        request.email()
+                );
 
         if (appUserRepository
-                .existsByEmailIgnoreCase(normalizedEmail)) {
+                .existsByEmailIgnoreCase(
+                        normalizedEmail
+                )) {
 
             throw new EmailAlreadyExistsException(
                     normalizedEmail
             );
         }
 
-        AppUser user = new AppUser();
+        AppUser user =
+                new AppUser();
 
         user.setFirstName(
                 request.firstName().trim()
@@ -69,7 +88,9 @@ public class AppUserService {
                 request.lastName().trim()
         );
 
-        user.setEmail(normalizedEmail);
+        user.setEmail(
+                normalizedEmail
+        );
 
         user.setPasswordHash(
                 passwordEncoder.encode(
@@ -77,8 +98,13 @@ public class AppUserService {
                 )
         );
 
-        user.setRole(request.role());
-        user.setActive(request.active());
+        user.setRole(
+                request.role()
+        );
+
+        user.setActive(
+                request.active()
+        );
 
         applyRoleConfiguration(
                 user,
@@ -88,15 +114,44 @@ public class AppUserService {
         );
 
         AppUser savedUser =
-                appUserRepository.save(user);
+                appUserRepository.save(
+                        user
+                );
 
-        return toResponse(savedUser);
+        return toResponse(
+                savedUser
+        );
     }
 
     @Transactional(readOnly = true)
-    public List<UserResponse> getAll() {
+    public List<UserResponse> getAll(
+            String adminEmail
+    ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
+
+        if (admin.getAdminScope()
+                == AdminScope.GLOBAL) {
+
+            return appUserRepository
+                    .findAll()
+                    .stream()
+                    .map(this::toResponse)
+                    .toList();
+        }
+
+        Dormitory adminDormitory =
+                getDormitoryAdminDormitory(
+                        admin
+                );
+
         return appUserRepository
-                .findAll()
+                .findByRoleAndDormitory(
+                        Role.REVIEWER,
+                        adminDormitory.getId()
+                )
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -104,23 +159,59 @@ public class AppUserService {
 
     @Transactional(readOnly = true)
     public UserResponse getById(
-            Long id
+            Long id,
+            String adminEmail
     ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
+
+        AppUser targetUser =
+                findUserById(
+                        id
+                );
+
+        validateTargetUserAccess(
+                admin,
+                targetUser
+        );
+
         return toResponse(
-                findUserById(id)
+                targetUser
         );
     }
 
     @Transactional
     public UserResponse update(
             Long id,
-            UpdateUserRequest request
+            UpdateUserRequest request,
+            String adminEmail
     ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
+
         AppUser user =
-                findUserById(id);
+                findUserById(
+                        id
+                );
+
+        validateTargetUserAccess(
+                admin,
+                user
+        );
+
+        validateUpdatePermission(
+                admin,
+                request
+        );
 
         String normalizedEmail =
-                normalizeEmail(request.email());
+                normalizeEmail(
+                        request.email()
+                );
 
         boolean anotherUserUsesEmail =
                 appUserRepository
@@ -143,9 +234,17 @@ public class AppUserService {
                 request.lastName().trim()
         );
 
-        user.setEmail(normalizedEmail);
-        user.setRole(request.role());
-        user.setActive(request.active());
+        user.setEmail(
+                normalizedEmail
+        );
+
+        user.setRole(
+                request.role()
+        );
+
+        user.setActive(
+                request.active()
+        );
 
         applyRoleConfiguration(
                 user,
@@ -154,7 +253,9 @@ public class AppUserService {
                 request.dormitoryId()
         );
 
-        return toResponse(user);
+        return toResponse(
+                user
+        );
     }
 
     private void applyRoleConfiguration(
@@ -365,5 +466,172 @@ public class AppUserService {
                 dormitoryId,
                 dormitoryName
         );
+    }
+
+    private AppUser findAuthenticatedAdmin(
+            String email
+    ) {
+        AppUser admin =
+                appUserRepository
+                        .findByNormalizedEmail(
+                                email
+                        )
+                        .orElseThrow(
+                                InvalidCredentialsException::new
+                        );
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new UserIsNotAdminException(
+                    admin.getId()
+            );
+        }
+
+        if (!admin.isActive()) {
+            throw new InvalidCredentialsException();
+        }
+
+        return admin;
+    }
+
+    private Dormitory getDormitoryAdminDormitory(
+            AppUser admin
+    ) {
+        if (admin.getAdminScope()
+                != AdminScope.DORMITORY) {
+
+            throw new InvalidAdminConfigurationException(
+                    "Kullanıcı yurt admini değildir."
+            );
+        }
+
+        Dormitory dormitory =
+                admin.getDormitory();
+
+        if (dormitory == null) {
+            throw new InvalidAdminConfigurationException(
+                    "Yurt admini için yurt ataması zorunludur."
+            );
+        }
+
+        return dormitory;
+    }
+
+    private void validateCreatePermission(
+            AppUser admin,
+            CreateUserRequest request
+    ) {
+        if (admin.getAdminScope()
+                == AdminScope.GLOBAL) {
+
+            return;
+        }
+
+        Dormitory adminDormitory =
+                getDormitoryAdminDormitory(
+                        admin
+                );
+
+        if (request.role()
+                != Role.REVIEWER) {
+
+            throw new UserManagementAccessDeniedException(
+                    "Yurt admini yalnızca REVIEWER kullanıcısı oluşturabilir."
+            );
+        }
+
+        if (request.adminScope() != null) {
+            throw new UserManagementAccessDeniedException(
+                    "Reviewer kullanıcısı için adminScope gönderilemez."
+            );
+        }
+
+        if (request.dormitoryId() == null
+                || !adminDormitory
+                .getId()
+                .equals(
+                        request.dormitoryId()
+                )) {
+
+            throw new UserManagementAccessDeniedException(
+                    "Yurt admini yalnızca kendi yurduna reviewer atayabilir."
+            );
+        }
+    }
+
+    private void validateUpdatePermission(
+            AppUser admin,
+            UpdateUserRequest request
+    ) {
+        if (admin.getAdminScope()
+                == AdminScope.GLOBAL) {
+
+            return;
+        }
+
+        Dormitory adminDormitory =
+                getDormitoryAdminDormitory(
+                        admin
+                );
+
+        if (request.role()
+                != Role.REVIEWER) {
+
+            throw new UserManagementAccessDeniedException(
+                    "Yurt admini kullanıcı rolünü REVIEWER dışında değiştiremez."
+            );
+        }
+
+        if (request.adminScope() != null) {
+            throw new UserManagementAccessDeniedException(
+                    "Reviewer kullanıcısı için adminScope gönderilemez."
+            );
+        }
+
+        if (request.dormitoryId() == null
+                || !adminDormitory
+                .getId()
+                .equals(
+                        request.dormitoryId()
+                )) {
+
+            throw new UserManagementAccessDeniedException(
+                    "Yurt admini reviewer kullanıcısını başka yurda taşıyamaz."
+            );
+        }
+    }
+
+    private void validateTargetUserAccess(
+            AppUser admin,
+            AppUser targetUser
+    ) {
+        if (admin.getAdminScope()
+                == AdminScope.GLOBAL) {
+
+            return;
+        }
+
+        Dormitory adminDormitory =
+                getDormitoryAdminDormitory(
+                        admin
+                );
+
+        Dormitory targetDormitory =
+                targetUser.getDormitory();
+
+        boolean allowed =
+                targetUser.getRole()
+                        == Role.REVIEWER
+                        && targetDormitory != null
+                        && adminDormitory
+                        .getId()
+                        .equals(
+                                targetDormitory.getId()
+                        );
+
+        if (!allowed) {
+            throw new UserManagementAccessDeniedException(
+                    "Bu kullanıcıyı görüntüleme veya güncelleme yetkiniz bulunmamaktadır."
+            );
+        }
     }
 }

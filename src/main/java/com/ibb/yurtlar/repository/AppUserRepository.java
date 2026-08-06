@@ -4,6 +4,7 @@ import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.entity.AppUser;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
+import java.util.List;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -26,6 +27,23 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
         """)
     Optional<AppUser> findByNormalizedEmail(
             @Param("email") String email
+    );
+
+    @Query("""
+        SELECT u
+        FROM AppUser u
+        LEFT JOIN FETCH u.dormitory d
+        WHERE u.role = :role
+          AND d.id = :dormitoryId
+        ORDER BY u.firstName ASC,
+                 u.lastName ASC
+        """)
+    List<AppUser> findByRoleAndDormitory(
+            @Param("role")
+            Role role,
+
+            @Param("dormitoryId")
+            Long dormitoryId
     );
 }
 

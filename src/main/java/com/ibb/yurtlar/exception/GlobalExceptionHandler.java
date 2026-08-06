@@ -813,4 +813,24 @@ public class GlobalExceptionHandler {
                 .body(apiError);
     }
 
+    @ExceptionHandler(
+            UserManagementAccessDeniedException.class
+    )
+    public ResponseEntity<ApiError>
+    handleUserManagementAccessDenied(
+            UserManagementAccessDeniedException exception,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = createApiError(
+                HttpStatus.FORBIDDEN,
+                exception.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(apiError);
+    }
+
 }
