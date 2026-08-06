@@ -14,6 +14,12 @@ import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.StudentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ibb.yurtlar.entity.Dormitory;
+import com.ibb.yurtlar.enums.AdminScope;
+import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
+import com.ibb.yurtlar.exception.InvalidCredentialsException;
+import com.ibb.yurtlar.exception.StudentManagementAccessDeniedException;
+import com.ibb.yurtlar.exception.UserIsNotAdminException;
 
 import java.util.List;
 
@@ -33,64 +39,174 @@ public class StudentService {
 
     @Transactional
     public StudentResponse create(
-            CreateStudentRequest request
+            CreateStudentRequest request,
+            String adminEmail
     ) {
-        AppUser user = appUserRepository
-                .findById(request.userId())
-                .orElseThrow(
-                        () -> new UserNotFoundException(
-                                request.userId()
-                        )
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
                 );
 
-        if (user.getRole() != Role.STUDENT) {
-            throw new UserIsNotStudentException(user.getId());
+        if (admin.getAdminScope()
+                != AdminScope.GLOBAL) {
+
+            throw new StudentManagementAccessDeniedException(
+                    "Yalnızca GLOBAL admin öğrenci profili oluşturabilir."
+            );
         }
 
-        if (studentRepository.existsByUserId(user.getId())) {
+        AppUser user =
+                appUserRepository
+                        .findById(
+                                request.userId()
+                        )
+                        .orElseThrow(
+                                () -> new UserNotFoundException(
+                                        request.userId()
+                                )
+                        );
+
+        if (user.getRole() != Role.STUDENT) {
+            throw new UserIsNotStudentException(
+                    user.getId()
+            );
+        }
+
+        if (studentRepository
+                .existsByUserId(
+                        user.getId()
+                )) {
+
             throw new StudentProfileAlreadyExistsException(
                     user.getId()
             );
         }
 
         String identityNumber =
-                request.identityNumber().trim();
+                request.identityNumber()
+                        .trim();
 
         if (studentRepository
-                .existsByIdentityNumber(identityNumber)) {
+                .existsByIdentityNumber(
+                        identityNumber
+                )) {
 
             throw new IdentityNumberAlreadyExistsException(
                     identityNumber
             );
         }
 
-        Student student = new Student();
-        student.setIdentityNumber(identityNumber);
-        student.setFaculty(request.faculty().trim());
-        student.setDepartment(request.department().trim());
-        student.setPhone(request.phone().trim());
-        student.setBirthDate(request.birthDate());
-        student.setUser(user);
+        Student student =
+                new Student();
+
+        student.setIdentityNumber(
+                identityNumber
+        );
+
+        student.setFaculty(
+                request.faculty().trim()
+        );
+
+        student.setDepartment(
+                request.department().trim()
+        );
+
+        student.setPhone(
+                request.phone().trim()
+        );
+
+        student.setBirthDate(
+                request.birthDate()
+        );
+
+        student.setUser(
+                user
+        );
 
         Student savedStudent =
-                studentRepository.save(student);
+                studentRepository.save(
+                        student
+                );
 
-        return toResponse(savedStudent);
+        return toResponse(
+                savedStudent
+        );
     }
 
     @Transactional(readOnly = true)
-    public List<StudentResponse> getAll() {
-        return studentRepository.findAll()
+    public List<StudentResponse> getAll(
+            String adminEmail
+    ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
+
+        if (admin.getAdminScope()
+                == AdminScope.GLOBAL) {
+
+            return studentRepository
+                    .findAll()
+                    .stream()
+                    .map(this::toResponse)
+                    .toList();
+        }
+
+        Dormitory adminDormitory =
+                getDormitoryAdminDormitory(
+                        admin
+                );
+
+        return studentRepository
+                .findActiveTermStudentsByDormitory(
+                        adminDormitory.getId()
+                )
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public StudentResponse getById(Long id) {
-        Student student = findStudentById(id);
+    public StudentResponse getById(
+            Long id,
+            String adminEmail
+    ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
 
-        return toResponse(student);
+        Student student;
+
+        if (admin.getAdminScope()
+                == AdminScope.GLOBAL) {
+
+            student =
+                    findStudentById(
+                            id
+                    );
+        } else {
+            Dormitory adminDormitory =
+                    getDormitoryAdminDormitory(
+                            admin
+                    );
+
+            student =
+                    studentRepository
+                            .findActiveTermStudentByIdAndDormitory(
+                                    id,
+                                    adminDormitory.getId()
+                            )
+                            .orElseThrow(
+                                    () -> new StudentManagementAccessDeniedException(
+                                            id
+                                    )
+                            );
+        }
+
+        return toResponse(
+                student
+        );
     }
 
     private Student findStudentById(Long id) {
@@ -116,4 +232,54 @@ public class StudentService {
                 user.getEmail()
         );
     }
+
+    private AppUser findAuthenticatedAdmin(
+            String email
+    ) {
+        AppUser admin =
+                appUserRepository
+                        .findByNormalizedEmail(
+                                email
+                        )
+                        .orElseThrow(
+                                InvalidCredentialsException::new
+                        );
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new UserIsNotAdminException(
+                    admin.getId()
+            );
+        }
+
+        if (!admin.isActive()) {
+            throw new InvalidCredentialsException();
+        }
+
+        return admin;
+    }
+
+    private Dormitory getDormitoryAdminDormitory(
+            AppUser admin
+    ) {
+        if (admin.getAdminScope()
+                != AdminScope.DORMITORY) {
+
+            throw new InvalidAdminConfigurationException(
+                    "Kullanıcı yurt admini değildir."
+            );
+        }
+
+        Dormitory dormitory =
+                admin.getDormitory();
+
+        if (dormitory == null) {
+            throw new InvalidAdminConfigurationException(
+                    "Yurt admini için yurt ataması zorunludur."
+            );
+        }
+
+        return dormitory;
+    }
+
+
 }
