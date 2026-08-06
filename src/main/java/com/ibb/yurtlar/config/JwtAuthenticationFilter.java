@@ -6,6 +6,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,14 +28,27 @@ public class JwtAuthenticationFilter
             "Bearer ";
 
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
+
+    private final UserDetailsService
+            userDetailsService;
+
+    private final CustomAuthenticationEntryPoint
+            customAuthenticationEntryPoint;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
-            UserDetailsService userDetailsService
+            UserDetailsService userDetailsService,
+            CustomAuthenticationEntryPoint
+                    customAuthenticationEntryPoint
     ) {
-        this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
+        this.jwtService =
+                jwtService;
+
+        this.userDetailsService =
+                userDetailsService;
+
+        this.customAuthenticationEntryPoint =
+                customAuthenticationEntryPoint;
     }
 
     @Override
@@ -45,12 +59,19 @@ public class JwtAuthenticationFilter
     ) throws ServletException, IOException {
 
         String authorizationHeader =
-                request.getHeader(AUTHORIZATION_HEADER);
+                request.getHeader(
+                        AUTHORIZATION_HEADER
+                );
 
         if (authorizationHeader == null
-                || !authorizationHeader.startsWith(BEARER_PREFIX)) {
+                || !authorizationHeader
+                .startsWith(BEARER_PREFIX)) {
 
-            filterChain.doFilter(request, response);
+            filterChain.doFilter(
+                    request,
+                    response
+            );
+
             return;
         }
 
@@ -61,18 +82,24 @@ public class JwtAuthenticationFilter
 
         try {
             String email =
-                    jwtService.extractEmail(token);
+                    jwtService.extractEmail(
+                            token
+                    );
 
             boolean authenticationMissing =
                     SecurityContextHolder
                             .getContext()
-                            .getAuthentication() == null;
+                            .getAuthentication()
+                            == null;
 
-            if (email != null && authenticationMissing) {
+            if (email != null
+                    && authenticationMissing) {
 
                 UserDetails userDetails =
                         userDetailsService
-                                .loadUserByUsername(email);
+                                .loadUserByUsername(
+                                        email
+                                );
 
                 boolean tokenValid =
                         jwtService.isTokenValid(
@@ -80,29 +107,57 @@ public class JwtAuthenticationFilter
                                 userDetails.getUsername()
                         );
 
-                if (tokenValid) {
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    userDetails.getAuthorities()
-                            );
-
-                    authentication.setDetails(
-                            new WebAuthenticationDetailsSource()
-                                    .buildDetails(request)
+                if (!tokenValid) {
+                    throw new BadCredentialsException(
+                            "Geçersiz erişim tokenı."
                     );
-
-                    SecurityContextHolder
-                            .getContext()
-                            .setAuthentication(authentication);
                 }
+
+                UsernamePasswordAuthenticationToken
+                        authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
+
+                authentication.setDetails(
+                        new WebAuthenticationDetailsSource()
+                                .buildDetails(
+                                        request
+                                )
+                );
+
+                SecurityContextHolder
+                        .getContext()
+                        .setAuthentication(
+                                authentication
+                        );
             }
 
-        } catch (JwtException | IllegalArgumentException exception) {
+        } catch (
+                JwtException
+                | IllegalArgumentException
+                | BadCredentialsException exception
+        ) {
             SecurityContextHolder.clearContext();
+
+            customAuthenticationEntryPoint
+                    .commence(
+                            request,
+                            response,
+                            new BadCredentialsException(
+                                    "Geçersiz veya süresi dolmuş erişim tokenı.",
+                                    exception
+                            )
+                    );
+
+            return;
         }
 
-        filterChain.doFilter(request, response);
+        filterChain.doFilter(
+                request,
+                response
+        );
     }
 }
