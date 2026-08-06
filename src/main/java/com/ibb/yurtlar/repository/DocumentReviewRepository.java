@@ -43,4 +43,21 @@ public interface DocumentReviewRepository
 
             Pageable pageable
     );
+
+    @Query("""
+            SELECT dr
+            FROM DocumentReview dr
+            JOIN FETCH dr.studentDocument document
+            JOIN FETCH document.documentType documentType
+            JOIN FETCH document.admission admission
+            WHERE admission.id = :admissionId
+            ORDER BY dr.reviewedAt DESC
+            """)
+    List<DocumentReview>
+    findRecentByAdmissionId(
+            @Param("admissionId")
+            Long admissionId,
+
+            Pageable pageable
+    );
 }

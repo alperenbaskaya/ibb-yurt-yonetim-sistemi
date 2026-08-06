@@ -1,7 +1,9 @@
 package com.ibb.yurtlar.dto;
 
 import com.ibb.yurtlar.enums.AdmissionStatus;
+import com.ibb.yurtlar.enums.UploadPeriodStatus;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public record StudentDashboardResponse(
@@ -15,6 +17,7 @@ public record StudentDashboardResponse(
 
         Long admissionId,
         AdmissionStatus admissionStatus,
+        String admissionStatusMessage,
 
         Long dormitoryId,
         String dormitoryName,
@@ -22,11 +25,23 @@ public record StudentDashboardResponse(
         Long dormitoryTermId,
         String dormitoryTermName,
 
+        LocalDate documentUploadStartDate,
+        LocalDate documentUploadEndDate,
+        long remainingUploadDays,
+        UploadPeriodStatus uploadPeriodStatus,
+
         int totalRequiredDocuments,
         int approvedRequiredDocuments,
+        int completionPercentage,
         boolean documentProcessCompleted,
 
-        List<StudentDocumentRequirementStatusResponse> documents
+        StudentLastReviewResponse lastReview,
+
+        List<StudentDocumentActionRequiredResponse>
+                actionRequiredDocuments,
+
+        List<StudentDocumentRequirementStatusResponse>
+                documents
 
 ) {
 }
