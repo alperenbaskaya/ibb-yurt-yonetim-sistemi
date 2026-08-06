@@ -12,13 +12,28 @@ public record ReviewerDashboardResponse(
         Long dormitoryId,
         String dormitoryName,
 
+        long activeStudentCount,
+        long completedStudentCount,
+        long incompleteStudentCount,
+        long actionRequiredStudentCount,
+        int studentCompletionPercentage,
+
         long pendingDocumentCount,
         long approvedDocumentCount,
         long rejectedDocumentCount,
         long revisionRequiredDocumentCount,
 
-        List<StudentDocumentResponse> oldestPendingDocuments,
-        List<DocumentReviewResponse> recentDormitoryReviews
+        List<PendingDocumentTypeCountResponse>
+                pendingDocumentsByType,
+
+        List<StudentDocumentResponse>
+                oldestPendingDocuments,
+
+        List<ReviewerActionRequiredStudentResponse>
+                actionRequiredStudents,
+
+        List<DocumentReviewResponse>
+                recentDormitoryReviews
 
 ) {
 }

@@ -6,6 +6,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import com.ibb.yurtlar.enums.AdmissionStatus;
+import com.ibb.yurtlar.dto.PendingDocumentTypeCountResponse;
 
 import java.util.List;
 import java.util.Optional;
@@ -205,4 +207,54 @@ public interface StudentDocumentRepository
             @Param("status")
             StudentDocumentStatus status
     );
+
+    @Query("""
+        SELECT sd
+        FROM StudentDocument sd
+        JOIN FETCH sd.documentType documentType
+        JOIN FETCH sd.admission admission
+        JOIN FETCH admission.student student
+        JOIN FETCH student.user studentUser
+        JOIN FETCH admission.dormitory dormitory
+        JOIN FETCH admission.dormitoryTerm term
+        WHERE dormitory.id = :dormitoryId
+          AND term.active = true
+          AND admission.status = :admissionStatus
+        """)
+    List<StudentDocument> findAllForActiveTermDormitoryStudents(
+            @Param("dormitoryId")
+            Long dormitoryId,
+
+            @Param("admissionStatus")
+            AdmissionStatus admissionStatus
+    );
+
+    @Query("""
+        SELECT new com.ibb.yurtlar.dto.PendingDocumentTypeCountResponse(
+            documentType.id,
+            documentType.name,
+            COUNT(sd)
+        )
+        FROM StudentDocument sd
+        JOIN sd.documentType documentType
+        JOIN sd.admission admission
+        JOIN admission.dormitory dormitory
+        JOIN admission.dormitoryTerm term
+        WHERE dormitory.id = :dormitoryId
+          AND term.active = true
+          AND sd.status = :status
+        GROUP BY documentType.id,
+                 documentType.name
+        ORDER BY COUNT(sd) DESC,
+                 documentType.name ASC
+        """)
+    List<PendingDocumentTypeCountResponse>
+    findPendingDocumentCountsByType(
+            @Param("dormitoryId")
+            Long dormitoryId,
+
+            @Param("status")
+            StudentDocumentStatus status
+    );
+
 }

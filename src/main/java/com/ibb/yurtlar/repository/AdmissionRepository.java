@@ -142,4 +142,24 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
             Long adminDormitoryId
     );
 
+    @Query("""
+        SELECT a
+        FROM Admission a
+        JOIN FETCH a.student student
+        JOIN FETCH student.user studentUser
+        JOIN FETCH a.dormitory dormitory
+        JOIN FETCH a.dormitoryTerm term
+        WHERE dormitory.id = :dormitoryId
+          AND term.active = true
+          AND a.status = :status
+        ORDER BY studentUser.firstName ASC,
+                 studentUser.lastName ASC
+        """)
+    List<Admission> findActiveTermByDormitoryAndStatus(
+            @Param("dormitoryId")
+            Long dormitoryId,
+
+            @Param("status")
+            AdmissionStatus status
+    );
 }
