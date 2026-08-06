@@ -23,7 +23,13 @@ import com.ibb.yurtlar.entity.Dormitory;
 import com.ibb.yurtlar.exception.DormitoryNotFoundException;
 import com.ibb.yurtlar.exception.InactiveDormitoryException;
 import com.ibb.yurtlar.repository.DormitoryRepository;
-import com.ibb.yurtlar.entity.Dormitory;
+import com.ibb.yurtlar.enums.AdminScope;
+import com.ibb.yurtlar.enums.Role;
+import com.ibb.yurtlar.exception.AdmissionAccessDeniedException;
+import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
+import com.ibb.yurtlar.exception.InvalidCredentialsException;
+import com.ibb.yurtlar.exception.UserIsNotAdminException;
+import com.ibb.yurtlar.repository.AppUserRepository;
 
 import java.util.List;
 
@@ -34,31 +40,40 @@ public class AdmissionService {
     private final StudentRepository studentRepository;
     private final DormitoryTermRepository dormitoryTermRepository;
     private final DormitoryRepository dormitoryRepository;
-
+    private final AppUserRepository appUserRepository;
 
     public AdmissionService(
             AdmissionRepository admissionRepository,
             StudentRepository studentRepository,
             DormitoryTermRepository dormitoryTermRepository,
-            DormitoryRepository dormitoryRepository
+            DormitoryRepository dormitoryRepository,
+            AppUserRepository appUserRepository
     ) {
         this.admissionRepository = admissionRepository;
         this.studentRepository = studentRepository;
         this.dormitoryTermRepository = dormitoryTermRepository;
         this.dormitoryRepository = dormitoryRepository;
+        this.appUserRepository = appUserRepository;
     }
 
     @Transactional
     public AdmissionResponse create(
-            CreateAdmissionRequest request
+            CreateAdmissionRequest request,
+            String adminEmail
     ) {
-        Student student = studentRepository
-                .findById(request.studentId())
-                .orElseThrow(
-                        () -> new StudentNotFoundException(
-                                request.studentId()
-                        )
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
                 );
+
+        Student student =
+                studentRepository
+                        .findById(request.studentId())
+                        .orElseThrow(
+                                () -> new StudentNotFoundException(
+                                        request.studentId()
+                                )
+                        );
 
         DormitoryTerm dormitoryTerm =
                 dormitoryTermRepository
@@ -92,59 +107,127 @@ public class AdmissionService {
                                 )
                         );
 
+        validateAdminDormitoryAccess(
+                admin,
+                dormitory.getId(),
+                null
+        );
+
         if (!dormitory.isActive()) {
             throw new InactiveDormitoryException(
                     dormitory.getId()
             );
         }
 
-        Admission admission = new Admission();
+        Admission admission =
+                new Admission();
 
         admission.setStudent(student);
         admission.setDormitoryTerm(dormitoryTerm);
-
         admission.setDormitory(dormitory);
-
         admission.setAdmissionDate(
                 request.admissionDate()
         );
-
         admission.setStatus(
                 AdmissionStatus.PENDING
         );
 
         Admission savedAdmission =
-                admissionRepository.save(admission);
+                admissionRepository.save(
+                        admission
+                );
 
-        return toResponse(savedAdmission);
+        return toResponse(
+                savedAdmission
+        );
     }
 
     @Transactional(readOnly = true)
-    public List<AdmissionResponse> getAll() {
-        return admissionRepository.findAll()
+    public List<AdmissionResponse> getAll(
+            String adminEmail
+    ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
+
+        Long adminDormitoryId =
+                resolveAdminDormitoryId(
+                        admin
+                );
+
+        return admissionRepository
+                .findByAdminScopeAndFilters(
+                        null,
+                        null,
+                        null,
+                        adminDormitoryId
+                )
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public AdmissionResponse getById(Long id) {
-        return toResponse(findAdmissionById(id));
+    public AdmissionResponse getById(
+            Long id,
+            String adminEmail
+    ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
+
+        Admission admission =
+                findAdmissionById(
+                        id
+                );
+
+        validateAdminAdmissionAccess(
+                admin,
+                admission
+        );
+
+        return toResponse(
+                admission
+        );
     }
 
     @Transactional(readOnly = true)
     public List<AdmissionResponse> getByStudentId(
-            Long studentId
+            Long studentId,
+            String adminEmail
     ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
+
         if (!studentRepository.existsById(studentId)) {
-            throw new StudentNotFoundException(studentId);
+            throw new StudentNotFoundException(
+                    studentId
+            );
         }
 
+        Long adminDormitoryId =
+                resolveAdminDormitoryId(
+                        admin
+                );
+
         return admissionRepository
-                .findAllByStudent_IdOrderByDormitoryTerm_StartDateDesc(
-                        studentId
+                .findByAdminScopeAndFilters(
+                        null,
+                        null,
+                        null,
+                        adminDormitoryId
                 )
                 .stream()
+                .filter(admission ->
+                        admission
+                                .getStudent()
+                                .getId()
+                                .equals(studentId)
+                )
                 .map(this::toResponse)
                 .toList();
     }
@@ -152,13 +235,31 @@ public class AdmissionService {
     @Transactional
     public AdmissionResponse updateStatus(
             Long id,
-            UpdateAdmissionStatusRequest request
+            UpdateAdmissionStatusRequest request,
+            String adminEmail
     ) {
-        Admission admission = findAdmissionById(id);
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
 
-        admission.setStatus(request.status());
+        Admission admission =
+                findAdmissionById(
+                        id
+                );
 
-        return toResponse(admission);
+        validateAdminAdmissionAccess(
+                admin,
+                admission
+        );
+
+        admission.setStatus(
+                request.status()
+        );
+
+        return toResponse(
+                admission
+        );
     }
 
     private Admission findAdmissionById(Long id) {
@@ -206,32 +307,64 @@ public class AdmissionService {
     }
 
     @Transactional
-    public void delete(Long id) {
-        Admission admission = findAdmissionById(id);
+    public void delete(
+            Long id,
+            String adminEmail
+    ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
 
-        admissionRepository.delete(admission);
+        Admission admission =
+                findAdmissionById(
+                        id
+                );
+
+        validateAdminAdmissionAccess(
+                admin,
+                admission
+        );
+
+        admissionRepository.delete(
+                admission
+        );
     }
 
     @Transactional(readOnly = true)
     public List<AdmissionResponse> filter(
             Long termId,
             AdmissionStatus status,
-            String dormitoryName
+            String dormitoryName,
+            String adminEmail
     ) {
-        if (termId != null
-                && !dormitoryTermRepository.existsById(termId)) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
 
-            throw new DormitoryTermNotFoundException(termId);
+        if (termId != null
+                && !dormitoryTermRepository
+                .existsById(termId)) {
+
+            throw new DormitoryTermNotFoundException(
+                    termId
+            );
         }
 
-        String normalizedDormitoryName =
-                normalizeOptionalText(dormitoryName);
+        Long adminDormitoryId =
+                resolveAdminDormitoryId(
+                        admin
+                );
 
         return admissionRepository
-                .findByFilters(
+                .findByAdminScopeAndFilters(
                         termId,
                         status,
-                        normalizedDormitoryName
+                        normalizeOptionalText(
+                                dormitoryName
+                        ),
+                        adminDormitoryId
                 )
                 .stream()
                 .map(this::toResponse)
@@ -275,7 +408,13 @@ public class AdmissionService {
 
     @Transactional(readOnly = true)
     public CurrentTermAdmissionSummaryResponse
-    getCurrentTermSummary() {
+    getCurrentTermSummary(
+            String adminEmail
+    ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
 
         DormitoryTerm activeTerm =
                 dormitoryTermRepository
@@ -284,27 +423,36 @@ public class AdmissionService {
                                 ActiveDormitoryTermNotFoundException::new
                         );
 
-        Long termId = activeTerm.getId();
+        Long termId =
+                activeTerm.getId();
+
+        Long adminDormitoryId =
+                resolveAdminDormitoryId(
+                        admin
+                );
 
         long pendingCount =
                 admissionRepository
-                        .countByDormitoryTerm_IdAndStatus(
+                        .countByTermAndStatusAndAdminScope(
                                 termId,
-                                AdmissionStatus.PENDING
+                                AdmissionStatus.PENDING,
+                                adminDormitoryId
                         );
 
         long approvedCount =
                 admissionRepository
-                        .countByDormitoryTerm_IdAndStatus(
+                        .countByTermAndStatusAndAdminScope(
                                 termId,
-                                AdmissionStatus.APPROVED
+                                AdmissionStatus.APPROVED,
+                                adminDormitoryId
                         );
 
         long rejectedCount =
                 admissionRepository
-                        .countByDormitoryTerm_IdAndStatus(
+                        .countByTermAndStatusAndAdminScope(
                                 termId,
-                                AdmissionStatus.REJECTED
+                                AdmissionStatus.REJECTED,
+                                adminDormitoryId
                         );
 
         long totalCount =
@@ -326,8 +474,14 @@ public class AdmissionService {
     public List<AdmissionResponse>
     getCurrentTermAdmissionsByDormitory(
             String dormitoryName,
-            AdmissionStatus status
+            AdmissionStatus status,
+            String adminEmail
     ) {
+        AppUser admin =
+                findAuthenticatedAdmin(
+                        adminEmail
+                );
+
         DormitoryTerm activeTerm =
                 dormitoryTermRepository
                         .findByActiveTrue()
@@ -335,18 +489,119 @@ public class AdmissionService {
                                 ActiveDormitoryTermNotFoundException::new
                         );
 
-        String normalizedDormitoryName =
-                normalizeOptionalText(dormitoryName);
+        Long adminDormitoryId =
+                resolveAdminDormitoryId(
+                        admin
+                );
 
         return admissionRepository
-                .findByFilters(
+                .findByAdminScopeAndFilters(
                         activeTerm.getId(),
                         status,
-                        normalizedDormitoryName
+                        normalizeOptionalText(
+                                dormitoryName
+                        ),
+                        adminDormitoryId
                 )
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    private AppUser findAuthenticatedAdmin(
+            String email
+    ) {
+        AppUser admin =
+                appUserRepository
+                        .findByNormalizedEmail(
+                                email
+                        )
+                        .orElseThrow(
+                                InvalidCredentialsException::new
+                        );
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new UserIsNotAdminException(
+                    admin.getId()
+            );
+        }
+
+        if (!admin.isActive()) {
+            throw new InvalidCredentialsException();
+        }
+
+        return admin;
+    }
+
+    private Long resolveAdminDormitoryId(
+            AppUser admin
+    ) {
+        if (admin.getAdminScope()
+                == AdminScope.GLOBAL) {
+
+            return null;
+        }
+
+        if (admin.getAdminScope()
+                == AdminScope.DORMITORY) {
+
+            Dormitory dormitory =
+                    admin.getDormitory();
+
+            if (dormitory == null) {
+                throw new InvalidAdminConfigurationException(
+                        "Yurt admini için yurt ataması zorunludur."
+                );
+            }
+
+            return dormitory.getId();
+        }
+
+        throw new InvalidAdminConfigurationException(
+                "Admin kullanıcısının yetki kapsamı geçersizdir."
+        );
+    }
+
+    private void validateAdminAdmissionAccess(
+            AppUser admin,
+            Admission admission
+    ) {
+        validateAdminDormitoryAccess(
+                admin,
+                admission.getDormitory().getId(),
+                admission.getId()
+        );
+    }
+
+    private void validateAdminDormitoryAccess(
+            AppUser admin,
+            Long targetDormitoryId,
+            Long admissionId
+    ) {
+        if (admin.getAdminScope()
+                == AdminScope.GLOBAL) {
+
+            return;
+        }
+
+        Long adminDormitoryId =
+                resolveAdminDormitoryId(
+                        admin
+                );
+
+        if (!adminDormitoryId.equals(
+                targetDormitoryId
+        )) {
+            if (admissionId != null) {
+                throw new AdmissionAccessDeniedException(
+                        admissionId
+                );
+            }
+
+            throw new AdmissionAccessDeniedException(
+                    "Bu yurt için kabul kaydı oluşturma yetkiniz bulunmamaktadır."
+            );
+        }
     }
 
 }

@@ -86,4 +86,60 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
             @Param("email") String email
     );
 
+    @Query("""
+        SELECT a
+        FROM Admission a
+        JOIN FETCH a.student student
+        JOIN FETCH student.user studentUser
+        JOIN FETCH a.dormitoryTerm term
+        JOIN FETCH a.dormitory dormitory
+        WHERE (:termId IS NULL
+               OR term.id = :termId)
+          AND (:status IS NULL
+               OR a.status = :status)
+          AND (:dormitoryName IS NULL
+               OR LOWER(dormitory.name)
+                    LIKE LOWER(
+                        CONCAT('%', :dormitoryName, '%')
+                    ))
+          AND (:adminDormitoryId IS NULL
+               OR dormitory.id = :adminDormitoryId)
+        ORDER BY term.startDate DESC,
+                 a.createdAt DESC
+        """)
+    List<Admission> findByAdminScopeAndFilters(
+            @Param("termId")
+            Long termId,
+
+            @Param("status")
+            AdmissionStatus status,
+
+            @Param("dormitoryName")
+            String dormitoryName,
+
+            @Param("adminDormitoryId")
+            Long adminDormitoryId
+    );
+
+    @Query("""
+        SELECT COUNT(a)
+        FROM Admission a
+        JOIN a.dormitoryTerm term
+        JOIN a.dormitory dormitory
+        WHERE term.id = :termId
+          AND a.status = :status
+          AND (:adminDormitoryId IS NULL
+               OR dormitory.id = :adminDormitoryId)
+        """)
+    long countByTermAndStatusAndAdminScope(
+            @Param("termId")
+            Long termId,
+
+            @Param("status")
+            AdmissionStatus status,
+
+            @Param("adminDormitoryId")
+            Long adminDormitoryId
+    );
+
 }
