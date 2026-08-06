@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.ibb.yurtlar.dto.DormitoryAdminDashboardResponse;
 
 @RestController
 @RequestMapping("/api/admin-dashboard")
@@ -29,6 +30,18 @@ public class AdminDashboardController {
     ) {
         return adminDashboardService
                 .getMyDashboard(
+                        authentication.getName()
+                );
+    }
+
+    @GetMapping("/me/dormitory")
+    @PreAuthorize("hasRole('ADMIN')")
+    public DormitoryAdminDashboardResponse
+    getMyDormitoryDashboard(
+            Authentication authentication
+    ) {
+        return adminDashboardService
+                .getMyDormitoryDashboard(
                         authentication.getName()
                 );
     }

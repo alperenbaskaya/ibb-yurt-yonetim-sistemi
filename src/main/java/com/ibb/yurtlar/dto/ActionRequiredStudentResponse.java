@@ -1,6 +1,6 @@
 package com.ibb.yurtlar.dto;
 
-public record ReviewerActionRequiredStudentResponse(
+public record ActionRequiredStudentResponse(
 
         Long studentId,
         Long admissionId,

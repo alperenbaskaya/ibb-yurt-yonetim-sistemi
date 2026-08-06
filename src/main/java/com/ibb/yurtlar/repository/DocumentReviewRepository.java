@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import com.ibb.yurtlar.dto.DormitoryReviewerWorkloadResponse;
 
 import java.util.List;
 
@@ -59,5 +60,70 @@ public interface DocumentReviewRepository
             Long admissionId,
 
             Pageable pageable
+    );
+
+    @Query("""
+        SELECT new com.ibb.yurtlar.dto.DormitoryReviewerWorkloadResponse(
+            reviewer.id,
+            reviewer.firstName,
+            reviewer.lastName,
+            reviewer.email,
+            reviewer.active,
+
+            SUM(
+                CASE
+                    WHEN review.decision =
+                         com.ibb.yurtlar.enums.DocumentReviewDecision.APPROVED
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN review.decision =
+                         com.ibb.yurtlar.enums.DocumentReviewDecision.REJECTED
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN review.decision =
+                         com.ibb.yurtlar.enums.DocumentReviewDecision.REVISION_REQUIRED
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            COUNT(review)
+        )
+        FROM AppUser reviewer
+        LEFT JOIN DocumentReview review
+               ON review.reviewer = reviewer
+              AND review.studentDocument.admission.dormitoryTerm.id =
+                  :activeTermId
+              AND review.studentDocument.admission.dormitory.id =
+                  :dormitoryId
+        WHERE reviewer.role =
+              com.ibb.yurtlar.enums.Role.REVIEWER
+          AND reviewer.dormitory.id = :dormitoryId
+        GROUP BY reviewer.id,
+                 reviewer.firstName,
+                 reviewer.lastName,
+                 reviewer.email,
+                 reviewer.active
+        ORDER BY COUNT(review) DESC,
+                 reviewer.firstName ASC,
+                 reviewer.lastName ASC
+        """)
+    List<DormitoryReviewerWorkloadResponse>
+    findReviewerWorkloads(
+            @Param("activeTermId")
+            Long activeTermId,
+
+            @Param("dormitoryId")
+            Long dormitoryId
     );
 }

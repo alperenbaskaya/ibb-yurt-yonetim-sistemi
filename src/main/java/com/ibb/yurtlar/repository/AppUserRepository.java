@@ -45,5 +45,23 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
             @Param("dormitoryId")
             Long dormitoryId
     );
+
+    @Query("""
+        SELECT COUNT(user)
+        FROM AppUser user
+        WHERE user.role = :role
+          AND user.dormitory.id = :dormitoryId
+          AND (:active IS NULL OR user.active = :active)
+        """)
+    long countByRoleAndDormitoryAndOptionalActive(
+            @Param("role")
+            Role role,
+
+            @Param("dormitoryId")
+            Long dormitoryId,
+
+            @Param("active")
+            Boolean active
+    );
 }
 

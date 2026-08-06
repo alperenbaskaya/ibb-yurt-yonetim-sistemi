@@ -1,5 +1,6 @@
 package com.ibb.yurtlar.repository;
 
+import com.ibb.yurtlar.dto.AdmissionStatusCountResponse;
 import com.ibb.yurtlar.entity.Admission;
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.ibb.yurtlar.enums.AdmissionStatus;
@@ -161,5 +162,48 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
 
             @Param("status")
             AdmissionStatus status
+    );
+
+    @Query("""
+        SELECT new com.ibb.yurtlar.dto.AdmissionStatusCountResponse(
+            COUNT(admission),
+
+            SUM(
+                CASE
+                    WHEN admission.status =
+                         com.ibb.yurtlar.enums.AdmissionStatus.PENDING
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN admission.status =
+                         com.ibb.yurtlar.enums.AdmissionStatus.APPROVED
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN admission.status =
+                         com.ibb.yurtlar.enums.AdmissionStatus.REJECTED
+                    THEN 1
+                    ELSE 0
+                END
+            )
+        )
+        FROM Admission admission
+        WHERE admission.dormitoryTerm.id = :activeTermId
+          AND admission.dormitory.id = :dormitoryId
+        """)
+    AdmissionStatusCountResponse getStatusCountsForDormitory(
+            @Param("activeTermId")
+            Long activeTermId,
+
+            @Param("dormitoryId")
+            Long dormitoryId
     );
 }

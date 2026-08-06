@@ -1,5 +1,6 @@
 package com.ibb.yurtlar.repository;
 
+import com.ibb.yurtlar.dto.DocumentStatusCountResponse;
 import com.ibb.yurtlar.entity.StudentDocument;
 import com.ibb.yurtlar.enums.StudentDocumentStatus;
 import org.springframework.data.domain.Pageable;
@@ -257,4 +258,53 @@ public interface StudentDocumentRepository
             StudentDocumentStatus status
     );
 
+    @Query("""
+        SELECT new com.ibb.yurtlar.dto.DocumentStatusCountResponse(
+            SUM(
+                CASE
+                    WHEN document.status =
+                         com.ibb.yurtlar.enums.StudentDocumentStatus.UPLOADED
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN document.status =
+                         com.ibb.yurtlar.enums.StudentDocumentStatus.APPROVED
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN document.status =
+                         com.ibb.yurtlar.enums.StudentDocumentStatus.REJECTED
+                    THEN 1
+                    ELSE 0
+                END
+            ),
+
+            SUM(
+                CASE
+                    WHEN document.status =
+                         com.ibb.yurtlar.enums.StudentDocumentStatus.REVISION_REQUIRED
+                    THEN 1
+                    ELSE 0
+                END
+            )
+        )
+        FROM StudentDocument document
+        WHERE document.admission.dormitoryTerm.id = :activeTermId
+          AND document.admission.dormitory.id = :dormitoryId
+        """)
+    DocumentStatusCountResponse getStatusCountsForDormitory(
+            @Param("activeTermId")
+            Long activeTermId,
+
+            @Param("dormitoryId")
+            Long dormitoryId
+    );
 }

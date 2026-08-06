@@ -2,6 +2,7 @@ package com.ibb.yurtlar.service;
 
 import com.ibb.yurtlar.dto.AdminDashboardResponse;
 import com.ibb.yurtlar.dto.AdminRecentAdmissionResponse;
+import com.ibb.yurtlar.dto.DormitoryAdminDashboardResponse;
 import com.ibb.yurtlar.entity.Admission;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.Dormitory;
@@ -23,6 +24,13 @@ import com.ibb.yurtlar.repository.StudentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import com.ibb.yurtlar.dto.AdmissionStatusCountResponse;
+import com.ibb.yurtlar.dto.DocumentStatusCountResponse;
+import com.ibb.yurtlar.dto.DormitoryAdminDashboardResponse;
+import com.ibb.yurtlar.dto.DormitoryReviewerWorkloadResponse;
+import com.ibb.yurtlar.dto.DormitoryStudentProgressResponse;
+import com.ibb.yurtlar.dto.PendingDocumentTypeCountResponse;
+import com.ibb.yurtlar.repository.DocumentReviewRepository;
 
 import java.util.List;
 
@@ -34,19 +42,32 @@ public class AdminDashboardService {
     private final StudentRepository studentRepository;
     private final AdmissionRepository admissionRepository;
     private final StudentDocumentRepository studentDocumentRepository;
+    private final DocumentReviewRepository
+            documentReviewRepository;
+
+    private final DormitoryStudentProgressService
+            dormitoryStudentProgressService;
 
     public AdminDashboardService(
             DormitoryTermRepository dormitoryTermRepository,
             AppUserRepository appUserRepository,
             StudentRepository studentRepository,
             AdmissionRepository admissionRepository,
-            StudentDocumentRepository studentDocumentRepository
+            StudentDocumentRepository studentDocumentRepository,
+            DocumentReviewRepository documentReviewRepository,
+            DormitoryStudentProgressService
+                    dormitoryStudentProgressService
     ) {
         this.dormitoryTermRepository = dormitoryTermRepository;
         this.appUserRepository = appUserRepository;
         this.studentRepository = studentRepository;
         this.admissionRepository = admissionRepository;
         this.studentDocumentRepository = studentDocumentRepository;
+        this.documentReviewRepository =
+                documentReviewRepository;
+
+        this.dormitoryStudentProgressService =
+                dormitoryStudentProgressService;
     }
 
     @Transactional(readOnly = true)
@@ -425,6 +446,190 @@ public class AdminDashboardService {
 
         return getDashboard(
                 admin.getId()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public DormitoryAdminDashboardResponse
+    getMyDormitoryDashboard(
+            String email
+    ) {
+        AppUser admin =
+                appUserRepository
+                        .findByNormalizedEmail(
+                                email
+                        )
+                        .orElseThrow(
+                                () -> new UsernameNotFoundException(
+                                        "Giriş yapan kullanıcı bulunamadı."
+                                )
+                        );
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new UserIsNotAdminException(
+                    admin.getId()
+            );
+        }
+
+        if (admin.getAdminScope()
+                != AdminScope.DORMITORY) {
+
+            throw new InvalidAdminConfigurationException(
+                    "Bu dashboard yalnızca yurt adminleri "
+                            + "tarafından kullanılabilir."
+            );
+        }
+
+        Dormitory dormitory =
+                admin.getDormitory();
+
+        if (dormitory == null) {
+            throw new InvalidAdminConfigurationException(
+                    "Yurt adminine bir yurt atanmamıştır."
+            );
+        }
+
+        DormitoryTerm activeTerm =
+                dormitoryTermRepository
+                        .findByActiveTrue()
+                        .orElseThrow(
+                                ActiveDormitoryTermNotFoundException::new
+                        );
+
+        Long dormitoryId =
+                dormitory.getId();
+
+        Long activeTermId =
+                activeTerm.getId();
+
+        DormitoryStudentProgressResponse progress =
+                dormitoryStudentProgressService
+                        .calculateProgress(
+                                dormitoryId,
+                                activeTermId
+                        );
+
+        AdmissionStatusCountResponse admissionCounts =
+                admissionRepository
+                        .getStatusCountsForDormitory(
+                                activeTermId,
+                                dormitoryId
+                        );
+
+        DocumentStatusCountResponse documentCounts =
+                studentDocumentRepository
+                        .getStatusCountsForDormitory(
+                                activeTermId,
+                                dormitoryId
+                        );
+
+        long totalReviewerCount =
+                appUserRepository
+                        .countByRoleAndDormitoryAndOptionalActive(
+                                Role.REVIEWER,
+                                dormitoryId,
+                                null
+                        );
+
+        long activeReviewerCount =
+                appUserRepository
+                        .countByRoleAndDormitoryAndOptionalActive(
+                                Role.REVIEWER,
+                                dormitoryId,
+                                true
+                        );
+
+        long inactiveReviewerCount =
+                totalReviewerCount
+                        - activeReviewerCount;
+
+        List<DormitoryReviewerWorkloadResponse>
+                reviewerWorkloads =
+                documentReviewRepository
+                        .findReviewerWorkloads(
+                                activeTermId,
+                                dormitoryId
+                        );
+
+        List<PendingDocumentTypeCountResponse>
+                pendingDocumentsByType =
+                studentDocumentRepository
+                        .findPendingDocumentCountsByType(
+                                dormitoryId,
+                                StudentDocumentStatus.UPLOADED
+                        );
+
+        int capacity =
+                dormitory.getCapacity();
+
+        long activeStudentCount =
+                progress.activeStudentCount();
+
+        long availableCapacity =
+                Math.max(
+                        capacity - activeStudentCount,
+                        0
+                );
+
+        int occupancyPercentage =
+                calculateOccupancyPercentage(
+                        capacity,
+                        activeStudentCount
+                );
+
+        return new DormitoryAdminDashboardResponse(
+                admin.getId(),
+                admin.getFirstName(),
+                admin.getLastName(),
+                admin.getEmail(),
+
+                dormitory.getId(),
+                dormitory.getName(),
+
+                activeTerm.getId(),
+                activeTerm.getName(),
+
+                capacity,
+                activeStudentCount,
+                availableCapacity,
+                occupancyPercentage,
+
+                admissionCounts.totalCount(),
+                admissionCounts.pendingCount(),
+                admissionCounts.approvedCount(),
+                admissionCounts.rejectedCount(),
+
+                progress.completedStudentCount(),
+                progress.incompleteStudentCount(),
+                progress.studentCompletionPercentage(),
+
+                totalReviewerCount,
+                activeReviewerCount,
+                inactiveReviewerCount,
+
+                documentCounts.pendingCount(),
+                documentCounts.approvedCount(),
+                documentCounts.rejectedCount(),
+                documentCounts.revisionRequiredCount(),
+
+                reviewerWorkloads,
+                pendingDocumentsByType,
+                progress.actionRequiredStudents()
+        );
+    }
+
+    private int calculateOccupancyPercentage(
+            int capacity,
+            long activeStudentCount
+    ) {
+        if (capacity <= 0) {
+            return 0;
+        }
+
+        return (int) Math.round(
+                activeStudentCount
+                        * 100.0
+                        / capacity
         );
     }
 }

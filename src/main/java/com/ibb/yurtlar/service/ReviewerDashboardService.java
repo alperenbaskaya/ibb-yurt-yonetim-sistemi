@@ -1,36 +1,29 @@
 package com.ibb.yurtlar.service;
 
 import com.ibb.yurtlar.dto.DocumentReviewResponse;
+import com.ibb.yurtlar.dto.DormitoryStudentProgressResponse;
 import com.ibb.yurtlar.dto.PendingDocumentTypeCountResponse;
-import com.ibb.yurtlar.dto.ReviewerActionRequiredStudentResponse;
 import com.ibb.yurtlar.dto.ReviewerDashboardResponse;
 import com.ibb.yurtlar.dto.StudentDocumentResponse;
-import com.ibb.yurtlar.entity.Admission;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.Dormitory;
-import com.ibb.yurtlar.entity.StudentDocument;
-import com.ibb.yurtlar.entity.TermDocumentRequirement;
-import com.ibb.yurtlar.enums.AdmissionStatus;
+import com.ibb.yurtlar.entity.DormitoryTerm;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.enums.StudentDocumentStatus;
+import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
 import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
 import com.ibb.yurtlar.exception.UserIsNotReviewerException;
 import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.mapper.StudentDocumentMapper;
-import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.AppUserRepository;
+import com.ibb.yurtlar.repository.DormitoryTermRepository;
 import com.ibb.yurtlar.repository.StudentDocumentRepository;
-import com.ibb.yurtlar.repository.TermDocumentRequirementRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 public class ReviewerDashboardService {
@@ -38,14 +31,8 @@ public class ReviewerDashboardService {
     private final AppUserRepository
             appUserRepository;
 
-    private final AdmissionRepository
-            admissionRepository;
-
     private final StudentDocumentRepository
             studentDocumentRepository;
-
-    private final TermDocumentRequirementRepository
-            termDocumentRequirementRepository;
 
     private final DocumentReviewService
             documentReviewService;
@@ -53,32 +40,38 @@ public class ReviewerDashboardService {
     private final StudentDocumentMapper
             studentDocumentMapper;
 
+    private final DormitoryStudentProgressService
+            dormitoryStudentProgressService;
+
+    private final DormitoryTermRepository
+            dormitoryTermRepository;
+
     public ReviewerDashboardService(
             AppUserRepository appUserRepository,
-            AdmissionRepository admissionRepository,
             StudentDocumentRepository studentDocumentRepository,
-            TermDocumentRequirementRepository
-                    termDocumentRequirementRepository,
             DocumentReviewService documentReviewService,
-            StudentDocumentMapper studentDocumentMapper
+            StudentDocumentMapper studentDocumentMapper,
+            DormitoryStudentProgressService
+                    dormitoryStudentProgressService,
+            DormitoryTermRepository dormitoryTermRepository
     ) {
         this.appUserRepository =
                 appUserRepository;
 
-        this.admissionRepository =
-                admissionRepository;
-
         this.studentDocumentRepository =
                 studentDocumentRepository;
-
-        this.termDocumentRequirementRepository =
-                termDocumentRequirementRepository;
 
         this.documentReviewService =
                 documentReviewService;
 
         this.studentDocumentMapper =
                 studentDocumentMapper;
+
+        this.dormitoryStudentProgressService =
+                dormitoryStudentProgressService;
+
+        this.dormitoryTermRepository =
+                dormitoryTermRepository;
     }
 
     @Transactional(readOnly = true)
@@ -95,96 +88,22 @@ public class ReviewerDashboardService {
                         reviewer
                 );
 
+        DormitoryTerm activeTerm =
+                dormitoryTermRepository
+                        .findByActiveTrue()
+                        .orElseThrow(
+                                ActiveDormitoryTermNotFoundException::new
+                        );
+
         Long dormitoryId =
                 dormitory.getId();
 
-        List<Admission> activeAdmissions =
-                admissionRepository
-                        .findActiveTermByDormitoryAndStatus(
+        DormitoryStudentProgressResponse progress =
+                dormitoryStudentProgressService
+                        .calculateProgress(
                                 dormitoryId,
-                                AdmissionStatus.APPROVED
+                                activeTerm.getId()
                         );
-
-        List<StudentDocument> dormitoryDocuments =
-                studentDocumentRepository
-                        .findAllForActiveTermDormitoryStudents(
-                                dormitoryId,
-                                AdmissionStatus.APPROVED
-                        );
-
-        List<TermDocumentRequirement>
-                requiredDocumentRequirements =
-                findRequiredDocumentRequirements(
-                        activeAdmissions
-                );
-
-        Map<Long, List<StudentDocument>>
-                documentsByAdmissionId =
-                dormitoryDocuments
-                        .stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        document ->
-                                                document
-                                                        .getAdmission()
-                                                        .getId()
-                                )
-                        );
-
-        List<ReviewerActionRequiredStudentResponse>
-                allActionRequiredStudents =
-                activeAdmissions
-                        .stream()
-                        .map(admission ->
-                                createActionRequiredStudent(
-                                        admission,
-                                        requiredDocumentRequirements,
-                                        documentsByAdmissionId
-                                                .getOrDefault(
-                                                        admission.getId(),
-                                                        List.of()
-                                                )
-                                )
-                        )
-                        .filter(response ->
-                                response.missingDocumentCount() > 0
-                                        || response
-                                        .revisionRequiredDocumentCount() > 0
-                                        || response
-                                        .rejectedDocumentCount() > 0
-                        )
-                        .toList();
-
-        long activeStudentCount =
-                activeAdmissions.size();
-
-        long actionRequiredStudentCount =
-                allActionRequiredStudents.size();
-
-        long completedStudentCount =
-                activeAdmissions
-                        .stream()
-                        .filter(admission ->
-                                isStudentDocumentProcessCompleted(
-                                        requiredDocumentRequirements,
-                                        documentsByAdmissionId
-                                                .getOrDefault(
-                                                        admission.getId(),
-                                                        List.of()
-                                                )
-                                )
-                        )
-                        .count();
-
-        long incompleteStudentCount =
-                activeStudentCount
-                        - completedStudentCount;
-
-        int studentCompletionPercentage =
-                calculateStudentCompletionPercentage(
-                        activeStudentCount,
-                        completedStudentCount
-                );
 
         long pendingDocumentCount =
                 countDocumentsByStatus(
@@ -224,19 +143,15 @@ public class ReviewerDashboardService {
                         .findOldestByActiveTermAndDormitoryAndStatus(
                                 dormitoryId,
                                 StudentDocumentStatus.UPLOADED,
-                                PageRequest.of(0, 10)
+                                PageRequest.of(
+                                        0,
+                                        10
+                                )
                         )
                         .stream()
                         .map(
                                 studentDocumentMapper::toResponse
                         )
-                        .toList();
-
-        List<ReviewerActionRequiredStudentResponse>
-                actionRequiredStudents =
-                allActionRequiredStudents
-                        .stream()
-                        .limit(10)
                         .toList();
 
         List<DocumentReviewResponse>
@@ -255,11 +170,11 @@ public class ReviewerDashboardService {
                 dormitory.getId(),
                 dormitory.getName(),
 
-                activeStudentCount,
-                completedStudentCount,
-                incompleteStudentCount,
-                actionRequiredStudentCount,
-                studentCompletionPercentage,
+                progress.activeStudentCount(),
+                progress.completedStudentCount(),
+                progress.incompleteStudentCount(),
+                progress.actionRequiredStudentCount(),
+                progress.studentCompletionPercentage(),
 
                 pendingDocumentCount,
                 approvedDocumentCount,
@@ -268,7 +183,7 @@ public class ReviewerDashboardService {
 
                 pendingDocumentsByType,
                 oldestPendingDocuments,
-                actionRequiredStudents,
+                progress.actionRequiredStudents(),
                 recentDormitoryReviews
         );
     }
@@ -296,159 +211,6 @@ public class ReviewerDashboardService {
 
         return getDashboard(
                 reviewer.getId()
-        );
-    }
-
-    private List<TermDocumentRequirement>
-    findRequiredDocumentRequirements(
-            List<Admission> activeAdmissions
-    ) {
-        if (activeAdmissions.isEmpty()) {
-            return List.of();
-        }
-
-        Long activeTermId =
-                activeAdmissions
-                        .getFirst()
-                        .getDormitoryTerm()
-                        .getId();
-
-        return termDocumentRequirementRepository
-                .findRequiredDocumentsByDormitoryTerm(
-                        activeTermId
-                );
-    }
-
-    private boolean isStudentDocumentProcessCompleted(
-            List<TermDocumentRequirement> requirements,
-            List<StudentDocument> documents
-    ) {
-        if (requirements.isEmpty()) {
-            return false;
-        }
-
-        Map<Long, StudentDocument>
-                documentsByDocumentTypeId =
-                documents
-                        .stream()
-                        .collect(
-                                Collectors.toMap(
-                                        document ->
-                                                document
-                                                        .getDocumentType()
-                                                        .getId(),
-                                        Function.identity(),
-                                        (first, second) -> second
-                                )
-                        );
-
-        return requirements
-                .stream()
-                .allMatch(requirement -> {
-                    StudentDocument document =
-                            documentsByDocumentTypeId.get(
-                                    requirement
-                                            .getDocumentType()
-                                            .getId()
-                            );
-
-                    return document != null
-                            && document.getStatus()
-                            == StudentDocumentStatus.APPROVED;
-                });
-    }
-
-    private ReviewerActionRequiredStudentResponse
-    createActionRequiredStudent(
-            Admission admission,
-            List<TermDocumentRequirement> requirements,
-            List<StudentDocument> documents
-    ) {
-        Map<Long, StudentDocument>
-                documentsByDocumentTypeId =
-                documents
-                        .stream()
-                        .collect(
-                                Collectors.toMap(
-                                        document ->
-                                                document
-                                                        .getDocumentType()
-                                                        .getId(),
-                                        Function.identity(),
-                                        (first, second) -> second
-                                )
-                        );
-
-        int missingDocumentCount =
-                0;
-
-        int revisionRequiredDocumentCount =
-                0;
-
-        int rejectedDocumentCount =
-                0;
-
-        for (TermDocumentRequirement requirement
-                : requirements) {
-
-            Long documentTypeId =
-                    requirement
-                            .getDocumentType()
-                            .getId();
-
-            StudentDocument document =
-                    documentsByDocumentTypeId.get(
-                            documentTypeId
-                    );
-
-            if (document == null) {
-                missingDocumentCount++;
-                continue;
-            }
-
-            if (document.getStatus()
-                    == StudentDocumentStatus.REVISION_REQUIRED) {
-
-                revisionRequiredDocumentCount++;
-            }
-
-            if (document.getStatus()
-                    == StudentDocumentStatus.REJECTED) {
-
-                rejectedDocumentCount++;
-            }
-        }
-
-        AppUser studentUser =
-                admission
-                        .getStudent()
-                        .getUser();
-
-        return new ReviewerActionRequiredStudentResponse(
-                admission.getStudent().getId(),
-                admission.getId(),
-
-                studentUser.getFirstName(),
-                studentUser.getLastName(),
-
-                missingDocumentCount,
-                revisionRequiredDocumentCount,
-                rejectedDocumentCount
-        );
-    }
-
-    private int calculateStudentCompletionPercentage(
-            long activeStudentCount,
-            long completedStudentCount
-    ) {
-        if (activeStudentCount == 0) {
-            return 0;
-        }
-
-        return (int) Math.round(
-                completedStudentCount
-                        * 100.0
-                        / activeStudentCount
         );
     }
 
