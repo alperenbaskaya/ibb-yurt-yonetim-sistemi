@@ -83,11 +83,6 @@ public class AdmissionService {
             );
         }
 
-        Admission admission = new Admission();
-        admission.setStudent(student);
-        admission.setDormitoryTerm(dormitoryTerm);
-
-
         Dormitory dormitory =
                 dormitoryRepository
                         .findById(request.dormitoryId())
@@ -103,9 +98,17 @@ public class AdmissionService {
             );
         }
 
+        Admission admission = new Admission();
+
+        admission.setStudent(student);
+        admission.setDormitoryTerm(dormitoryTerm);
+
+        admission.setDormitory(dormitory);
+
         admission.setAdmissionDate(
                 request.admissionDate()
         );
+
         admission.setStatus(
                 AdmissionStatus.PENDING
         );

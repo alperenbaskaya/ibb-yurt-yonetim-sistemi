@@ -5,6 +5,8 @@ import com.ibb.yurtlar.dto.DocumentReviewResponse;
 import com.ibb.yurtlar.service.DocumentReviewService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,15 +27,22 @@ public class DocumentReviewController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('REVIEWER')")
     public DocumentReviewResponse create(
             @Valid
             @RequestBody
-            CreateDocumentReviewRequest request
+            CreateDocumentReviewRequest request,
+
+            Authentication authentication
     ) {
-        return documentReviewService.create(request);
+        return documentReviewService.create(
+                request,
+                authentication.getName()
+        );
     }
 
     @GetMapping("/document/{studentDocumentId}")
+    @PreAuthorize("hasRole('REVIEWER')")
     public List<DocumentReviewResponse> getByDocumentId(
             @PathVariable Long studentDocumentId
     ) {
@@ -42,6 +51,7 @@ public class DocumentReviewController {
     }
 
     @GetMapping("/reviewer/{reviewerUserId}")
+    @PreAuthorize("hasRole('REVIEWER')")
     public List<DocumentReviewResponse> getByReviewerId(
             @PathVariable Long reviewerUserId
     ) {

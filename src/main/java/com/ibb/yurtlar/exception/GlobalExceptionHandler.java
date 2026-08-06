@@ -83,6 +83,7 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
+        exception.printStackTrace();
         ApiError apiError = createApiError(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Beklenmeyen bir hata oluştu.",
@@ -729,6 +730,26 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(apiError);
+    }
+
+    @ExceptionHandler(
+            ReviewerDormitoryAccessDeniedException.class
+    )
+    public ResponseEntity<ApiError>
+    handleReviewerDormitoryAccessDenied(
+            ReviewerDormitoryAccessDeniedException exception,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = createApiError(
+                HttpStatus.FORBIDDEN,
+                exception.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
                 .body(apiError);
     }
 

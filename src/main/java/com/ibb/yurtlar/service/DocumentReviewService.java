@@ -21,6 +21,8 @@ import com.ibb.yurtlar.repository.StudentDocumentRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ibb.yurtlar.entity.Dormitory;
+import com.ibb.yurtlar.exception.*;
 
 import java.util.List;
 
@@ -53,7 +55,8 @@ public class DocumentReviewService {
 
     @Transactional
     public DocumentReviewResponse create(
-            CreateDocumentReviewRequest request
+            CreateDocumentReviewRequest request,
+            String reviewerEmail
     ) {
         StudentDocument document =
                 studentDocumentRepository
@@ -67,9 +70,14 @@ public class DocumentReviewService {
                         );
 
         AppUser reviewer =
-                validateReviewer(
-                        request.reviewerUserId()
+                validateReviewerByEmail(
+                        reviewerEmail
                 );
+
+        validateReviewerDormitoryAccess(
+                reviewer,
+                document
+        );
 
         if (document.getStatus()
                 != StudentDocumentStatus.UPLOADED) {
@@ -278,5 +286,64 @@ public class DocumentReviewService {
         }
 
         return reviewer;
+    }
+
+    private AppUser validateReviewerByEmail(
+            String reviewerEmail
+    ) {
+        AppUser reviewer =
+                appUserRepository
+                        .findByNormalizedEmail(
+                                reviewerEmail
+                        )
+                        .orElseThrow(
+                                () -> new InvalidCredentialsException()
+                        );
+
+        if (reviewer.getRole() != Role.REVIEWER) {
+            throw new UserIsNotReviewerException(
+                    reviewer.getId()
+            );
+        }
+
+        if (!reviewer.isActive()) {
+            throw new InvalidCredentialsException();
+        }
+
+        return reviewer;
+    }
+
+    private void validateReviewerDormitoryAccess(
+            AppUser reviewer,
+            StudentDocument document
+    ) {
+        Dormitory reviewerDormitory =
+                reviewer.getDormitory();
+
+        if (reviewerDormitory == null) {
+            throw new InvalidUserConfigurationException(
+                    "Reviewer kullanıcısına bir yurt atanmamıştır."
+            );
+        }
+
+        Admission admission =
+                document.getAdmission();
+
+        Dormitory documentDormitory =
+                admission.getDormitory();
+
+        boolean sameDormitory =
+                documentDormitory != null
+                        && reviewerDormitory
+                        .getId()
+                        .equals(
+                                documentDormitory.getId()
+                        );
+
+        if (!sameDormitory) {
+            throw new ReviewerDormitoryAccessDeniedException(
+                    document.getId()
+            );
+        }
     }
 }

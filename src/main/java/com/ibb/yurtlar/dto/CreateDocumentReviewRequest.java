@@ -9,9 +9,6 @@ public record CreateDocumentReviewRequest(
         @NotNull(message = "Öğrenci belgesi ID değeri zorunludur.")
         Long studentDocumentId,
 
-        @NotNull(message = "Görevli kullanıcı ID değeri zorunludur.")
-        Long reviewerUserId,
-
         @NotNull(message = "Değerlendirme kararı zorunludur.")
         DocumentReviewDecision decision,
 
