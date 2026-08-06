@@ -12,6 +12,7 @@ import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.AdmissionStatus;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.enums.StudentDocumentStatus;
+import com.ibb.yurtlar.enums.DormitoryAdmissionProcessStatus;
 import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
 import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
 import com.ibb.yurtlar.exception.UserIsNotAdminException;
@@ -31,6 +32,9 @@ import com.ibb.yurtlar.dto.DormitoryReviewerWorkloadResponse;
 import com.ibb.yurtlar.dto.DormitoryStudentProgressResponse;
 import com.ibb.yurtlar.dto.PendingDocumentTypeCountResponse;
 import com.ibb.yurtlar.repository.DocumentReviewRepository;
+import com.ibb.yurtlar.dto.GlobalAdminDashboardResponse;
+import com.ibb.yurtlar.dto.GlobalDormitoryStatisticsResponse;
+
 
 import java.util.List;
 
@@ -48,6 +52,9 @@ public class AdminDashboardService {
     private final DormitoryStudentProgressService
             dormitoryStudentProgressService;
 
+    private final GlobalDormitoryStatisticsService
+            globalDormitoryStatisticsService;
+
     public AdminDashboardService(
             DormitoryTermRepository dormitoryTermRepository,
             AppUserRepository appUserRepository,
@@ -56,7 +63,9 @@ public class AdminDashboardService {
             StudentDocumentRepository studentDocumentRepository,
             DocumentReviewRepository documentReviewRepository,
             DormitoryStudentProgressService
-                    dormitoryStudentProgressService
+                    dormitoryStudentProgressService,
+            GlobalDormitoryStatisticsService
+                    globalDormitoryStatisticsService
     ) {
         this.dormitoryTermRepository = dormitoryTermRepository;
         this.appUserRepository = appUserRepository;
@@ -68,6 +77,7 @@ public class AdminDashboardService {
 
         this.dormitoryStudentProgressService =
                 dormitoryStudentProgressService;
+        this.globalDormitoryStatisticsService = globalDormitoryStatisticsService;
     }
 
     @Transactional(readOnly = true)
@@ -618,6 +628,258 @@ public class AdminDashboardService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public GlobalAdminDashboardResponse
+    getMyGlobalDashboard(
+            String email
+    ) {
+        AppUser admin =
+                appUserRepository
+                        .findByNormalizedEmail(
+                                email
+                        )
+                        .orElseThrow(
+                                () -> new UsernameNotFoundException(
+                                        "Giriş yapan kullanıcı bulunamadı."
+                                )
+                        );
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new UserIsNotAdminException(
+                    admin.getId()
+            );
+        }
+
+        if (admin.getAdminScope()
+                != AdminScope.GLOBAL) {
+
+            throw new InvalidAdminConfigurationException(
+                    "Bu dashboard yalnızca GLOBAL adminler "
+                            + "tarafından kullanılabilir."
+            );
+        }
+
+        DormitoryTerm activeTerm =
+                dormitoryTermRepository
+                        .findByActiveTrue()
+                        .orElseThrow(
+                                ActiveDormitoryTermNotFoundException::new
+                        );
+
+        Long activeTermId =
+                activeTerm.getId();
+
+        List<GlobalDormitoryStatisticsResponse>
+                dormitoryStatistics =
+                globalDormitoryStatisticsService
+                        .createStatistics(
+                                activeTermId
+                        );
+
+        long totalDormitoryCount =
+                dormitoryStatistics.size();
+
+        long activeDormitoryCount =
+                dormitoryStatistics
+                        .stream()
+                        .filter(
+                                GlobalDormitoryStatisticsResponse
+                                        ::active
+                        )
+                        .count();
+
+        long inactiveDormitoryCount =
+                totalDormitoryCount
+                        - activeDormitoryCount;
+
+        long totalCapacity =
+                dormitoryStatistics
+                        .stream()
+                        .mapToLong(
+                                GlobalDormitoryStatisticsResponse
+                                        ::capacity
+                        )
+                        .sum();
+
+        long activeStudentCount =
+                dormitoryStatistics
+                        .stream()
+                        .mapToLong(
+                                GlobalDormitoryStatisticsResponse
+                                        ::activeStudentCount
+                        )
+                        .sum();
+
+        long availableCapacity =
+                Math.max(
+                        totalCapacity
+                                - activeStudentCount,
+                        0
+                );
+
+        int occupancyPercentage =
+                calculateOccupancyPercentage(
+                        totalCapacity,
+                        activeStudentCount
+                );
+
+        AdmissionStatusCountResponse admissionCounts =
+                admissionRepository
+                        .getGlobalStatusCountsForActiveTerm(
+                                activeTermId
+                        );
+
+        long completedStudentCount =
+                dormitoryStatistics
+                        .stream()
+                        .mapToLong(
+                                GlobalDormitoryStatisticsResponse
+                                        ::completedStudentCount
+                        )
+                        .sum();
+
+        long incompleteStudentCount =
+                dormitoryStatistics
+                        .stream()
+                        .mapToLong(
+                                GlobalDormitoryStatisticsResponse
+                                        ::incompleteStudentCount
+                        )
+                        .sum();
+
+        long actionRequiredStudentCount =
+                dormitoryStatistics
+                        .stream()
+                        .mapToLong(
+                                GlobalDormitoryStatisticsResponse
+                                        ::actionRequiredStudentCount
+                        )
+                        .sum();
+
+        int studentCompletionPercentage =
+                calculateStudentCompletionPercentage(
+                        activeStudentCount,
+                        completedStudentCount
+                );
+
+        long totalAdminCount =
+                appUserRepository
+                        .countByRole(
+                                Role.ADMIN
+                        );
+
+        long globalAdminCount =
+                appUserRepository
+                        .countAdminsByScope(
+                                AdminScope.GLOBAL
+                        );
+
+        long dormitoryAdminCount =
+                appUserRepository
+                        .countAdminsByScope(
+                                AdminScope.DORMITORY
+                        );
+
+        long totalReviewerCount =
+                appUserRepository
+                        .countReviewersByOptionalActive(
+                                null
+                        );
+
+        long activeReviewerCount =
+                appUserRepository
+                        .countReviewersByOptionalActive(
+                                true
+                        );
+
+        long inactiveReviewerCount =
+                totalReviewerCount
+                        - activeReviewerCount;
+
+        long totalStudentUserCount =
+                appUserRepository
+                        .countByRole(
+                                Role.STUDENT
+                        );
+
+        DocumentStatusCountResponse documentCounts =
+                studentDocumentRepository
+                        .getGlobalStatusCountsForActiveTerm(
+                                activeTermId
+                        );
+
+        long admissionCompletedDormitoryCount =
+                dormitoryStatistics
+                        .stream()
+                        .filter(statistics ->
+                                statistics
+                                        .admissionProcessStatus()
+                                        == DormitoryAdmissionProcessStatus
+                                        .COMPLETED
+                        )
+                        .count();
+
+        long admissionInProgressDormitoryCount =
+                dormitoryStatistics
+                        .stream()
+                        .filter(statistics ->
+                                statistics
+                                        .admissionProcessStatus()
+                                        == DormitoryAdmissionProcessStatus
+                                        .IN_PROGRESS
+                        )
+                        .count();
+
+        return new GlobalAdminDashboardResponse(
+                admin.getId(),
+                admin.getFirstName(),
+                admin.getLastName(),
+                admin.getEmail(),
+
+                activeTerm.getId(),
+                activeTerm.getName(),
+
+                totalDormitoryCount,
+                activeDormitoryCount,
+                inactiveDormitoryCount,
+
+                totalCapacity,
+                activeStudentCount,
+                availableCapacity,
+                occupancyPercentage,
+
+                admissionCounts.totalCount(),
+                admissionCounts.pendingCount(),
+                admissionCounts.approvedCount(),
+                admissionCounts.rejectedCount(),
+
+                completedStudentCount,
+                incompleteStudentCount,
+                actionRequiredStudentCount,
+                studentCompletionPercentage,
+
+                totalAdminCount,
+                globalAdminCount,
+                dormitoryAdminCount,
+
+                totalReviewerCount,
+                activeReviewerCount,
+                inactiveReviewerCount,
+
+                totalStudentUserCount,
+
+                documentCounts.pendingCount(),
+                documentCounts.approvedCount(),
+                documentCounts.rejectedCount(),
+                documentCounts.revisionRequiredCount(),
+
+                admissionCompletedDormitoryCount,
+                admissionInProgressDormitoryCount,
+
+                dormitoryStatistics
+        );
+    }
+
     private int calculateOccupancyPercentage(
             int capacity,
             long activeStudentCount
@@ -630,6 +892,36 @@ public class AdminDashboardService {
                 activeStudentCount
                         * 100.0
                         / capacity
+        );
+    }
+
+    private int calculateOccupancyPercentage(
+            long totalCapacity,
+            long activeStudentCount
+    ) {
+        if (totalCapacity <= 0) {
+            return 0;
+        }
+
+        return (int) Math.round(
+                activeStudentCount
+                        * 100.0
+                        / totalCapacity
+        );
+    }
+
+    private int calculateStudentCompletionPercentage(
+            long activeStudentCount,
+            long completedStudentCount
+    ) {
+        if (activeStudentCount == 0) {
+            return 0;
+        }
+
+        return (int) Math.round(
+                completedStudentCount
+                        * 100.0
+                        / activeStudentCount
         );
     }
 }

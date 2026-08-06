@@ -260,39 +260,40 @@ public interface StudentDocumentRepository
 
     @Query("""
         SELECT new com.ibb.yurtlar.dto.DocumentStatusCountResponse(
-            SUM(
+
+            COUNT(
                 CASE
                     WHEN document.status =
                          com.ibb.yurtlar.enums.StudentDocumentStatus.UPLOADED
                     THEN 1
-                    ELSE 0
+                    ELSE null
                 END
             ),
 
-            SUM(
+            COUNT(
                 CASE
                     WHEN document.status =
                          com.ibb.yurtlar.enums.StudentDocumentStatus.APPROVED
                     THEN 1
-                    ELSE 0
+                    ELSE null
                 END
             ),
 
-            SUM(
+            COUNT(
                 CASE
                     WHEN document.status =
                          com.ibb.yurtlar.enums.StudentDocumentStatus.REJECTED
                     THEN 1
-                    ELSE 0
+                    ELSE null
                 END
             ),
 
-            SUM(
+            COUNT(
                 CASE
                     WHEN document.status =
                          com.ibb.yurtlar.enums.StudentDocumentStatus.REVISION_REQUIRED
                     THEN 1
-                    ELSE 0
+                    ELSE null
                 END
             )
         )
@@ -306,5 +307,53 @@ public interface StudentDocumentRepository
 
             @Param("dormitoryId")
             Long dormitoryId
+    );
+
+    @Query("""
+        SELECT new com.ibb.yurtlar.dto.DocumentStatusCountResponse(
+
+            COUNT(
+                CASE
+                    WHEN document.status =
+                         com.ibb.yurtlar.enums.StudentDocumentStatus.UPLOADED
+                    THEN 1
+                    ELSE null
+                END
+            ),
+
+            COUNT(
+                CASE
+                    WHEN document.status =
+                         com.ibb.yurtlar.enums.StudentDocumentStatus.APPROVED
+                    THEN 1
+                    ELSE null
+                END
+            ),
+
+            COUNT(
+                CASE
+                    WHEN document.status =
+                         com.ibb.yurtlar.enums.StudentDocumentStatus.REJECTED
+                    THEN 1
+                    ELSE null
+                END
+            ),
+
+            COUNT(
+                CASE
+                    WHEN document.status =
+                         com.ibb.yurtlar.enums.StudentDocumentStatus.REVISION_REQUIRED
+                    THEN 1
+                    ELSE null
+                END
+            )
+        )
+        FROM StudentDocument document
+        WHERE document.admission.dormitoryTerm.id = :activeTermId
+        """)
+    DocumentStatusCountResponse
+    getGlobalStatusCountsForActiveTerm(
+            @Param("activeTermId")
+            Long activeTermId
     );
 }

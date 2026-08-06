@@ -6,8 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.ibb.yurtlar.enums.AdmissionStatus;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import java.util.Optional;
 
+import java.util.Optional;
 import java.util.List;
 
 public interface AdmissionRepository extends JpaRepository<Admission, Long> {
@@ -166,32 +166,33 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
 
     @Query("""
         SELECT new com.ibb.yurtlar.dto.AdmissionStatusCountResponse(
+
             COUNT(admission),
 
-            SUM(
+            COUNT(
                 CASE
                     WHEN admission.status =
                          com.ibb.yurtlar.enums.AdmissionStatus.PENDING
                     THEN 1
-                    ELSE 0
+                    ELSE null
                 END
             ),
 
-            SUM(
+            COUNT(
                 CASE
                     WHEN admission.status =
                          com.ibb.yurtlar.enums.AdmissionStatus.APPROVED
                     THEN 1
-                    ELSE 0
+                    ELSE null
                 END
             ),
 
-            SUM(
+            COUNT(
                 CASE
                     WHEN admission.status =
                          com.ibb.yurtlar.enums.AdmissionStatus.REJECTED
                     THEN 1
-                    ELSE 0
+                    ELSE null
                 END
             )
         )
@@ -206,4 +207,49 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
             @Param("dormitoryId")
             Long dormitoryId
     );
+
+    @Query("""
+        SELECT new com.ibb.yurtlar.dto.AdmissionStatusCountResponse(
+
+            COUNT(admission),
+
+            COUNT(
+                CASE
+                    WHEN admission.status =
+                         com.ibb.yurtlar.enums.AdmissionStatus.PENDING
+                    THEN 1
+                    ELSE null
+                END
+            ),
+
+            COUNT(
+                CASE
+                    WHEN admission.status =
+                         com.ibb.yurtlar.enums.AdmissionStatus.APPROVED
+                    THEN 1
+                    ELSE null
+                END
+            ),
+
+            COUNT(
+                CASE
+                    WHEN admission.status =
+                         com.ibb.yurtlar.enums.AdmissionStatus.REJECTED
+                    THEN 1
+                    ELSE null
+                END
+            )
+        )
+        FROM Admission admission
+        WHERE admission.dormitoryTerm.id = :activeTermId
+        """)
+    AdmissionStatusCountResponse
+    getGlobalStatusCountsForActiveTerm(
+            @Param("activeTermId")
+            Long activeTermId
+    );
+
+
+
+
 }

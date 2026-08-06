@@ -83,7 +83,7 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
-    //exception.printStackTrace();
+        //exception.printStackTrace();
         ApiError apiError = createApiError(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Beklenmeyen bir hata oluştu.",
