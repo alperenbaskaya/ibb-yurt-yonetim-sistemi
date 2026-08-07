@@ -1,6 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { FeaturePlaceholderPage } from '../components/common/FeaturePlaceholderPage'
 import { LoginPage } from '../features/auth/LoginPage'
+import { DormitoryAdminDashboardPage } from '../features/dormitory-admin/DormitoryAdminDashboardPage'
+import { DormitoryAdmissionsPage } from '../features/dormitory-admin/DormitoryAdmissionsPage'
+import { DormitoryDocumentsPage } from '../features/dormitory-admin/DormitoryDocumentsPage'
+import { DormitoryReviewersPage } from '../features/dormitory-admin/DormitoryReviewersPage'
+import { DormitoryStudentsPage } from '../features/dormitory-admin/DormitoryStudentsPage'
 import { NotificationPage } from '../features/notifications/NotificationPage'
 import { MyReviewsPage } from '../features/reviewer/MyReviewsPage'
 import { PendingDocumentsPage } from '../features/reviewer/PendingDocumentsPage'
@@ -72,48 +77,23 @@ export function AppRouter() {
             <Route element={<RequireAdminScope scope="DORMITORY" />}>
               <Route
                 path="/admin/dashboard"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Kontrol Paneli"
-                    description={placeholderDescriptions.dashboard}
-                  />
-                }
+                element={<DormitoryAdminDashboardPage />}
               />
               <Route
                 path="/admin/admissions"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Kabuller"
-                    description="Yurdunuza ait kabul kayıtları ve karar süreçleri bu alanda yönetilecektir."
-                  />
-                }
+                element={<DormitoryAdmissionsPage />}
               />
               <Route
                 path="/admin/students"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Öğrenciler"
-                    description={placeholderDescriptions.students}
-                  />
-                }
+                element={<DormitoryStudentsPage />}
               />
               <Route
                 path="/admin/reviewers"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Değerlendiriciler"
-                    description="Yurdunuza bağlı belge değerlendiricileri bu alanda yönetilecektir."
-                  />
-                }
+                element={<DormitoryReviewersPage />}
               />
               <Route
                 path="/admin/documents"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Belgeler"
-                    description={placeholderDescriptions.documents}
-                  />
-                }
+                element={<DormitoryDocumentsPage />}
               />
             </Route>
 
