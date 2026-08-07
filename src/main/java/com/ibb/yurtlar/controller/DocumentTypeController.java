@@ -6,12 +6,15 @@ import com.ibb.yurtlar.dto.UpdateDocumentTypeRequest;
 import com.ibb.yurtlar.service.DocumentTypeService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/document-types")
+@PreAuthorize("hasRole('ADMIN')")
 public class DocumentTypeController {
 
     private final DocumentTypeService documentTypeService;
@@ -27,9 +30,13 @@ public class DocumentTypeController {
     public DocumentTypeResponse create(
             @Valid
             @RequestBody
-            CreateDocumentTypeRequest request
+            CreateDocumentTypeRequest request,
+            Authentication authentication
     ) {
-        return documentTypeService.create(request);
+        return documentTypeService.create(
+                request,
+                authentication.getName()
+        );
     }
 
     @GetMapping
@@ -53,9 +60,13 @@ public class DocumentTypeController {
     public DocumentTypeResponse update(
             @PathVariable Long id,
             @Valid
-            @RequestBody
-            UpdateDocumentTypeRequest request
+            @RequestBody UpdateDocumentTypeRequest request,
+            Authentication authentication
     ) {
-        return documentTypeService.update(id, request);
+        return documentTypeService.update(
+                id,
+                request,
+                authentication.getName()
+        );
     }
 }

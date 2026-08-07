@@ -6,12 +6,15 @@ import com.ibb.yurtlar.dto.UpdateTermDocumentRequirementRequest;
 import com.ibb.yurtlar.service.TermDocumentRequirementService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/term-document-requirements")
+@PreAuthorize("hasRole('ADMIN')")
 public class TermDocumentRequirementController {
 
     private final TermDocumentRequirementService
@@ -30,9 +33,13 @@ public class TermDocumentRequirementController {
     public TermDocumentRequirementResponse create(
             @Valid
             @RequestBody
-            CreateTermDocumentRequirementRequest request
+            CreateTermDocumentRequirementRequest request,
+            Authentication authentication
     ) {
-        return termDocumentRequirementService.create(request);
+        return termDocumentRequirementService.create(
+                request,
+                authentication.getName()
+        );
     }
 
     @GetMapping("/{id}")
@@ -65,10 +72,14 @@ public class TermDocumentRequirementController {
     public TermDocumentRequirementResponse update(
             @PathVariable Long id,
             @Valid
-            @RequestBody
-            UpdateTermDocumentRequirementRequest request
+            @RequestBody UpdateTermDocumentRequirementRequest request,
+            Authentication authentication
     ) {
         return termDocumentRequirementService
-                .update(id, request);
+                .update(
+                        id,
+                        request,
+                        authentication.getName()
+                );
     }
 }

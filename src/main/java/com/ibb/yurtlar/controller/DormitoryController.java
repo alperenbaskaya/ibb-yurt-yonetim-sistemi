@@ -6,12 +6,15 @@ import com.ibb.yurtlar.dto.UpdateDormitoryRequest;
 import com.ibb.yurtlar.service.DormitoryService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/dormitories")
+@PreAuthorize("hasRole('ADMIN')")
 public class DormitoryController {
 
     private final DormitoryService dormitoryService;
@@ -27,9 +30,13 @@ public class DormitoryController {
     public DormitoryResponse create(
             @Valid
             @RequestBody
-            CreateDormitoryRequest request
+            CreateDormitoryRequest request,
+            Authentication authentication
     ) {
-        return dormitoryService.create(request);
+        return dormitoryService.create(
+                request,
+                authentication.getName()
+        );
     }
 
     @GetMapping
@@ -53,12 +60,13 @@ public class DormitoryController {
     public DormitoryResponse update(
             @PathVariable Long id,
             @Valid
-            @RequestBody
-            UpdateDormitoryRequest request
+            @RequestBody UpdateDormitoryRequest request,
+            Authentication authentication
     ) {
         return dormitoryService.update(
                 id,
-                request
+                request,
+                authentication.getName()
         );
     }
 }

@@ -4,6 +4,9 @@ import com.ibb.yurtlar.dto.CreateDormitoryTermRequest;
 import com.ibb.yurtlar.dto.DormitoryTermResponse;
 import com.ibb.yurtlar.dto.UpdateDormitoryTermRequest;
 import com.ibb.yurtlar.entity.DormitoryTerm;
+import com.ibb.yurtlar.entity.AppUser;
+import com.ibb.yurtlar.enums.AdminScope;
+import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.exception.DormitoryTermAlreadyExistsException;
 import com.ibb.yurtlar.exception.DormitoryTermNotFoundException;
 import com.ibb.yurtlar.exception.InvalidDateRangeException;
@@ -13,6 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ibb.yurtlar.exception.DormitoryTermInUseException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.TermDocumentRequirementRepository;
+import com.ibb.yurtlar.repository.AppUserRepository;
+import com.ibb.yurtlar.exception.InvalidCredentialsException;
+import com.ibb.yurtlar.exception.UserIsNotAdminException;
+import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 
 import java.util.List;
 
@@ -22,24 +29,30 @@ public class DormitoryTermService {
     private final DormitoryTermRepository dormitoryTermRepository;
     private final AdmissionRepository admissionRepository;
     private final TermDocumentRequirementRepository termDocumentRequirementRepository;
+    private final AppUserRepository appUserRepository;
 
 
     public DormitoryTermService(
             DormitoryTermRepository dormitoryTermRepository,
             AdmissionRepository admissionRepository,
             TermDocumentRequirementRepository
-                    termDocumentRequirementRepository
+                    termDocumentRequirementRepository,
+            AppUserRepository appUserRepository
     ) {
         this.dormitoryTermRepository = dormitoryTermRepository;
         this.admissionRepository = admissionRepository;
         this.termDocumentRequirementRepository =
                 termDocumentRequirementRepository;
+        this.appUserRepository = appUserRepository;
     }
 
     @Transactional
     public DormitoryTermResponse create(
-            CreateDormitoryTermRequest request
+            CreateDormitoryTermRequest request,
+            String adminEmail
     ) {
+        validateGlobalAdmin(adminEmail);
+
         if (dormitoryTermRepository.existsByName(request.name())) {
             throw new DormitoryTermAlreadyExistsException(request.name());
         }
@@ -91,8 +104,11 @@ public class DormitoryTermService {
     @Transactional
     public DormitoryTermResponse update(
             Long id,
-            UpdateDormitoryTermRequest request
+            UpdateDormitoryTermRequest request,
+            String adminEmail
     ) {
+        validateGlobalAdmin(adminEmail);
+
         DormitoryTerm term = findTermById(id);
 
         if (dormitoryTermRepository
@@ -193,7 +209,9 @@ public class DormitoryTermService {
     }
 
     @Transactional
-    public void delete(Long id) {
+    public void delete(Long id, String adminEmail) {
+        validateGlobalAdmin(adminEmail);
+
         DormitoryTerm term = findTermById(id);
 
         boolean hasAdmissions =
@@ -213,8 +231,11 @@ public class DormitoryTermService {
     @Transactional
     public DormitoryTermResponse updateActiveStatus(
             Long id,
-            Boolean active
+            Boolean active,
+            String adminEmail
     ) {
+        validateGlobalAdmin(adminEmail);
+
         DormitoryTerm term = findTermById(id);
 
         if (active && !term.isActive()) {
@@ -226,5 +247,20 @@ public class DormitoryTermService {
         return toResponse(term);
     }
 
+    private void validateGlobalAdmin(String email) {
+        AppUser admin = appUserRepository
+                .findByNormalizedEmail(email)
+                .orElseThrow(InvalidCredentialsException::new);
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new UserIsNotAdminException(admin.getId());
+        }
+
+        if (admin.getAdminScope() != AdminScope.GLOBAL) {
+            throw new UserManagementAccessDeniedException(
+                    "Bu işlem yalnızca GLOBAL adminler tarafından yapılabilir."
+            );
+        }
+    }
 
 }

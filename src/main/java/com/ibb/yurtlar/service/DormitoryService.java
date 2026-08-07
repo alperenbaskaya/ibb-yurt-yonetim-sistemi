@@ -4,8 +4,15 @@ import com.ibb.yurtlar.dto.CreateDormitoryRequest;
 import com.ibb.yurtlar.dto.DormitoryResponse;
 import com.ibb.yurtlar.dto.UpdateDormitoryRequest;
 import com.ibb.yurtlar.entity.Dormitory;
+import com.ibb.yurtlar.entity.AppUser;
+import com.ibb.yurtlar.enums.AdminScope;
+import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.exception.DormitoryAlreadyExistsException;
 import com.ibb.yurtlar.exception.DormitoryNotFoundException;
+import com.ibb.yurtlar.exception.InvalidCredentialsException;
+import com.ibb.yurtlar.exception.UserIsNotAdminException;
+import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
+import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DormitoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,17 +23,23 @@ import java.util.List;
 public class DormitoryService {
 
     private final DormitoryRepository dormitoryRepository;
+    private final AppUserRepository appUserRepository;
 
     public DormitoryService(
-            DormitoryRepository dormitoryRepository
+            DormitoryRepository dormitoryRepository,
+            AppUserRepository appUserRepository
     ) {
         this.dormitoryRepository = dormitoryRepository;
+        this.appUserRepository = appUserRepository;
     }
 
     @Transactional
     public DormitoryResponse create(
-            CreateDormitoryRequest request
+            CreateDormitoryRequest request,
+            String adminEmail
     ) {
+        validateGlobalAdmin(adminEmail);
+
         String normalizedName =
                 normalizeRequiredText(request.name());
 
@@ -81,8 +94,11 @@ public class DormitoryService {
     @Transactional
     public DormitoryResponse update(
             Long id,
-            UpdateDormitoryRequest request
+            UpdateDormitoryRequest request,
+            String adminEmail
     ) {
+        validateGlobalAdmin(adminEmail);
+
         Dormitory dormitory =
                 findDormitoryById(id);
 
@@ -152,5 +168,21 @@ public class DormitoryService {
                 dormitory.getCreatedAt(),
                 dormitory.getUpdatedAt()
         );
+    }
+
+    private void validateGlobalAdmin(String email) {
+        AppUser admin = appUserRepository
+                .findByNormalizedEmail(email)
+                .orElseThrow(InvalidCredentialsException::new);
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new UserIsNotAdminException(admin.getId());
+        }
+
+        if (admin.getAdminScope() != AdminScope.GLOBAL) {
+            throw new UserManagementAccessDeniedException(
+                    "Bu işlem yalnızca GLOBAL adminler tarafından yapılabilir."
+            );
+        }
     }
 }

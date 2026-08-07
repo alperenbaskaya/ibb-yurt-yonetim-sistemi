@@ -4,13 +4,20 @@ import com.ibb.yurtlar.dto.CreateTermDocumentRequirementRequest;
 import com.ibb.yurtlar.dto.TermDocumentRequirementResponse;
 import com.ibb.yurtlar.dto.UpdateTermDocumentRequirementRequest;
 import com.ibb.yurtlar.entity.DocumentType;
+import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.DormitoryTerm;
 import com.ibb.yurtlar.entity.TermDocumentRequirement;
+import com.ibb.yurtlar.enums.AdminScope;
+import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.exception.DocumentTypeNotFoundException;
 import com.ibb.yurtlar.exception.DormitoryTermNotFoundException;
 import com.ibb.yurtlar.exception.InactiveDocumentTypeException;
 import com.ibb.yurtlar.exception.TermDocumentRequirementAlreadyExistsException;
 import com.ibb.yurtlar.exception.TermDocumentRequirementNotFoundException;
+import com.ibb.yurtlar.exception.InvalidCredentialsException;
+import com.ibb.yurtlar.exception.UserIsNotAdminException;
+import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
+import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DocumentTypeRepository;
 import com.ibb.yurtlar.repository.DormitoryTermRepository;
 import com.ibb.yurtlar.repository.TermDocumentRequirementRepository;
@@ -28,12 +35,14 @@ public class TermDocumentRequirementService {
     private final DormitoryTermRepository dormitoryTermRepository;
 
     private final DocumentTypeRepository documentTypeRepository;
+    private final AppUserRepository appUserRepository;
 
     public TermDocumentRequirementService(
             TermDocumentRequirementRepository
                     termDocumentRequirementRepository,
             DormitoryTermRepository dormitoryTermRepository,
-            DocumentTypeRepository documentTypeRepository
+            DocumentTypeRepository documentTypeRepository,
+            AppUserRepository appUserRepository
     ) {
         this.termDocumentRequirementRepository =
                 termDocumentRequirementRepository;
@@ -43,12 +52,16 @@ public class TermDocumentRequirementService {
 
         this.documentTypeRepository =
                 documentTypeRepository;
+        this.appUserRepository = appUserRepository;
     }
 
     @Transactional
     public TermDocumentRequirementResponse create(
-            CreateTermDocumentRequirementRequest request
+            CreateTermDocumentRequirementRequest request,
+            String adminEmail
     ) {
+        validateGlobalAdmin(adminEmail);
+
         DormitoryTerm dormitoryTerm =
                 dormitoryTermRepository
                         .findById(request.dormitoryTermId())
@@ -141,8 +154,11 @@ public class TermDocumentRequirementService {
     @Transactional
     public TermDocumentRequirementResponse update(
             Long id,
-            UpdateTermDocumentRequirementRequest request
+            UpdateTermDocumentRequirementRequest request,
+            String adminEmail
     ) {
+        validateGlobalAdmin(adminEmail);
+
         TermDocumentRequirement requirement =
                 findRequirementById(id);
 
@@ -198,5 +214,21 @@ public class TermDocumentRequirementService {
                 requirement.getCreatedAt(),
                 requirement.getUpdatedAt()
         );
+    }
+
+    private void validateGlobalAdmin(String email) {
+        AppUser admin = appUserRepository
+                .findByNormalizedEmail(email)
+                .orElseThrow(InvalidCredentialsException::new);
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new UserIsNotAdminException(admin.getId());
+        }
+
+        if (admin.getAdminScope() != AdminScope.GLOBAL) {
+            throw new UserManagementAccessDeniedException(
+                    "Bu işlem yalnızca GLOBAL adminler tarafından yapılabilir."
+            );
+        }
     }
 }

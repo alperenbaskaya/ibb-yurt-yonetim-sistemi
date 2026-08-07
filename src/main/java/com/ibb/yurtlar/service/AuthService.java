@@ -1,5 +1,6 @@
 package com.ibb.yurtlar.service;
 
+import com.ibb.yurtlar.dto.CurrentUserResponse;
 import com.ibb.yurtlar.dto.LoginRequest;
 import com.ibb.yurtlar.dto.LoginResponse;
 import com.ibb.yurtlar.entity.AppUser;
@@ -94,6 +95,47 @@ public class AuthService {
 
                 user.getRole(),
                 user.getAdminScope(),
+
+                dormitoryId,
+                dormitoryName
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public CurrentUserResponse getCurrentUser(
+            String authenticatedEmail
+    ) {
+        AppUser user =
+                appUserRepository
+                        .findByNormalizedEmail(
+                                authenticatedEmail
+                        )
+                        .orElseThrow(
+                                InvalidCredentialsException::new
+                        );
+
+        Dormitory dormitory =
+                user.getDormitory();
+
+        Long dormitoryId =
+                dormitory == null
+                        ? null
+                        : dormitory.getId();
+
+        String dormitoryName =
+                dormitory == null
+                        ? null
+                        : dormitory.getName();
+
+        return new CurrentUserResponse(
+                user.getId(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail(),
+
+                user.getRole(),
+                user.getAdminScope(),
+                user.isActive(),
 
                 dormitoryId,
                 dormitoryName

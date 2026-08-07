@@ -4,9 +4,16 @@ import com.ibb.yurtlar.dto.CreateDocumentTypeRequest;
 import com.ibb.yurtlar.dto.DocumentTypeResponse;
 import com.ibb.yurtlar.dto.UpdateDocumentTypeRequest;
 import com.ibb.yurtlar.entity.DocumentType;
+import com.ibb.yurtlar.entity.AppUser;
+import com.ibb.yurtlar.enums.AdminScope;
+import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.exception.DocumentTypeAlreadyExistsException;
 import com.ibb.yurtlar.exception.DocumentTypeNotFoundException;
 import com.ibb.yurtlar.repository.DocumentTypeRepository;
+import com.ibb.yurtlar.repository.AppUserRepository;
+import com.ibb.yurtlar.exception.InvalidCredentialsException;
+import com.ibb.yurtlar.exception.UserIsNotAdminException;
+import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,17 +23,23 @@ import java.util.List;
 public class DocumentTypeService {
 
     private final DocumentTypeRepository documentTypeRepository;
+    private final AppUserRepository appUserRepository;
 
     public DocumentTypeService(
-            DocumentTypeRepository documentTypeRepository
+            DocumentTypeRepository documentTypeRepository,
+            AppUserRepository appUserRepository
     ) {
         this.documentTypeRepository = documentTypeRepository;
+        this.appUserRepository = appUserRepository;
     }
 
     @Transactional
     public DocumentTypeResponse create(
-            CreateDocumentTypeRequest request
+            CreateDocumentTypeRequest request,
+            String adminEmail
     ) {
+        validateGlobalAdmin(adminEmail);
+
         String normalizedName = normalizeName(request.name());
 
         if (documentTypeRepository
@@ -76,8 +89,11 @@ public class DocumentTypeService {
     @Transactional
     public DocumentTypeResponse update(
             Long id,
-            UpdateDocumentTypeRequest request
+            UpdateDocumentTypeRequest request,
+            String adminEmail
     ) {
+        validateGlobalAdmin(adminEmail);
+
         DocumentType documentType =
                 findDocumentTypeById(id);
 
@@ -145,5 +161,21 @@ public class DocumentTypeService {
                 documentType.getCreatedAt(),
                 documentType.getUpdatedAt()
         );
+    }
+
+    private void validateGlobalAdmin(String email) {
+        AppUser admin = appUserRepository
+                .findByNormalizedEmail(email)
+                .orElseThrow(InvalidCredentialsException::new);
+
+        if (admin.getRole() != Role.ADMIN) {
+            throw new UserIsNotAdminException(admin.getId());
+        }
+
+        if (admin.getAdminScope() != AdminScope.GLOBAL) {
+            throw new UserManagementAccessDeniedException(
+                    "Bu işlem yalnızca GLOBAL adminler tarafından yapılabilir."
+            );
+        }
     }
 }
