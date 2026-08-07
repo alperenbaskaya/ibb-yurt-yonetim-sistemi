@@ -1,5 +1,4 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { FeaturePlaceholderPage } from '../components/common/FeaturePlaceholderPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { DormitoryAdminDashboardPage } from '../features/dormitory-admin/DormitoryAdminDashboardPage'
 import { DormitoryAdmissionsPage } from '../features/dormitory-admin/DormitoryAdmissionsPage'
@@ -7,6 +6,14 @@ import { DormitoryDocumentsPage } from '../features/dormitory-admin/DormitoryDoc
 import { DormitoryReviewersPage } from '../features/dormitory-admin/DormitoryReviewersPage'
 import { DormitoryStudentsPage } from '../features/dormitory-admin/DormitoryStudentsPage'
 import { NotificationPage } from '../features/notifications/NotificationPage'
+import { GlobalAdmissionsPage } from '../features/global-admin/GlobalAdmissionsPage'
+import { GlobalDashboardPage } from '../features/global-admin/GlobalDashboardPage'
+import { GlobalDocumentTypesPage } from '../features/global-admin/GlobalDocumentTypesPage'
+import { GlobalDormitoriesPage } from '../features/global-admin/GlobalDormitoriesPage'
+import { GlobalRequirementsPage } from '../features/global-admin/GlobalRequirementsPage'
+import { GlobalStudentsPage } from '../features/global-admin/GlobalStudentsPage'
+import { GlobalTermsPage } from '../features/global-admin/GlobalTermsPage'
+import { GlobalUsersPage } from '../features/global-admin/GlobalUsersPage'
 import { MyReviewsPage } from '../features/reviewer/MyReviewsPage'
 import { PendingDocumentsPage } from '../features/reviewer/PendingDocumentsPage'
 import { ReviewerDashboardPage } from '../features/reviewer/ReviewerDashboardPage'
@@ -21,13 +28,6 @@ import { PublicOnlyRoute } from './PublicOnlyRoute'
 import { RequireAdminScope } from './RequireAdminScope'
 import { RequireAuth } from './RequireAuth'
 import { RequireRole } from './RequireRole'
-
-const placeholderDescriptions = {
-  dashboard: 'Rolünüze ait operasyonel özet ve iş akışları bu alanda sunulacaktır.',
-  documents: 'Belge süreçleri ve ilgili işlemler bu alanda yönetilecektir.',
-  students: 'Öğrenci kayıtları ve ilgili süreçler bu alanda sunulacaktır.',
-  management: 'Bu yönetim modülü sonraki geliştirme adımında kullanıma açılacaktır.',
-}
 
 export function AppRouter() {
   return (
@@ -100,75 +100,35 @@ export function AppRouter() {
             <Route element={<RequireAdminScope scope="GLOBAL" />}>
               <Route
                 path="/global/dashboard"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Genel Kontrol Paneli"
-                    description={placeholderDescriptions.dashboard}
-                  />
-                }
+                element={<GlobalDashboardPage />}
               />
               <Route
                 path="/global/dormitories"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Yurtlar"
-                    description="Sistemde tanımlı yurtlar bu alanda yönetilecektir."
-                  />
-                }
+                element={<GlobalDormitoriesPage />}
               />
               <Route
                 path="/global/users"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Kullanıcılar"
-                    description="Sistem kullanıcıları ve yetki tanımları bu alanda yönetilecektir."
-                  />
-                }
+                element={<GlobalUsersPage />}
               />
               <Route
                 path="/global/students"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Öğrenciler"
-                    description={placeholderDescriptions.students}
-                  />
-                }
+                element={<GlobalStudentsPage />}
               />
               <Route
                 path="/global/admissions"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Kabuller"
-                    description="Tüm yurtlara ait kabul süreçleri bu alanda yönetilecektir."
-                  />
-                }
+                element={<GlobalAdmissionsPage />}
               />
               <Route
                 path="/global/terms"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Yurt Dönemleri"
-                    description={placeholderDescriptions.management}
-                  />
-                }
+                element={<GlobalTermsPage />}
               />
               <Route
                 path="/global/document-types"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Belge Türleri"
-                    description={placeholderDescriptions.management}
-                  />
-                }
+                element={<GlobalDocumentTypesPage />}
               />
               <Route
                 path="/global/document-requirements"
-                element={
-                  <FeaturePlaceholderPage
-                    title="Belge Gereksinimleri"
-                    description={placeholderDescriptions.management}
-                  />
-                }
+                element={<GlobalRequirementsPage />}
               />
             </Route>
           </Route>
