@@ -117,5 +117,56 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
             @Param("active")
             Boolean active
     );
+
+    @Query("""
+        SELECT reviewer
+        FROM AppUser reviewer
+        JOIN FETCH reviewer.dormitory dormitory
+        WHERE reviewer.role =
+              com.ibb.yurtlar.enums.Role.REVIEWER
+          AND reviewer.active = true
+          AND dormitory.id = :dormitoryId
+        ORDER BY reviewer.firstName ASC,
+                 reviewer.lastName ASC
+        """)
+    List<AppUser> findActiveReviewersByDormitory(
+            @Param("dormitoryId")
+            Long dormitoryId
+    );
+
+
+    @Query("""
+        SELECT u
+        FROM AppUser u
+        JOIN FETCH u.dormitory d
+        WHERE u.role =
+              com.ibb.yurtlar.enums.Role.ADMIN
+          AND u.active = true
+          AND u.adminScope =
+              com.ibb.yurtlar.enums.AdminScope.DORMITORY
+          AND d.id = :dormitoryId
+        """)
+    Optional<AppUser> findActiveDormitoryAdmin(
+            @Param("dormitoryId")
+            Long dormitoryId
+    );
+
+    @Query("""
+        SELECT admin
+        FROM AppUser admin
+        JOIN FETCH admin.dormitory dormitory
+        WHERE admin.role =
+              com.ibb.yurtlar.enums.Role.ADMIN
+          AND admin.adminScope =
+              com.ibb.yurtlar.enums.AdminScope.DORMITORY
+          AND admin.active = true
+          AND dormitory.id = :dormitoryId
+        ORDER BY admin.firstName ASC,
+                 admin.lastName ASC
+        """)
+    List<AppUser> findActiveDormitoryAdminsByDormitory(
+            @Param("dormitoryId")
+            Long dormitoryId
+    );
 }
 

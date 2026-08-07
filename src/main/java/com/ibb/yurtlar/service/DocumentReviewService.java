@@ -23,6 +23,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.ibb.yurtlar.entity.Dormitory;
 import com.ibb.yurtlar.exception.*;
+import com.ibb.yurtlar.enums.DocumentReviewDecision;
+import com.ibb.yurtlar.enums.Role;
+import com.ibb.yurtlar.enums.StudentDocumentStatus;
+import com.ibb.yurtlar.dto.DocumentCompletionResponse;
+import com.ibb.yurtlar.enums.NotificationReferenceType;
+import com.ibb.yurtlar.enums.NotificationType;
 
 import java.util.List;
 
@@ -38,10 +44,18 @@ public class DocumentReviewService {
     private final AppUserRepository
             appUserRepository;
 
+    private final NotificationService
+            notificationService;
+
+    private final StudentDocumentService
+            studentDocumentService;
+
     public DocumentReviewService(
             DocumentReviewRepository documentReviewRepository,
             StudentDocumentRepository studentDocumentRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            NotificationService notificationService,
+            StudentDocumentService studentDocumentService
     ) {
         this.documentReviewRepository =
                 documentReviewRepository;
@@ -51,6 +65,12 @@ public class DocumentReviewService {
 
         this.appUserRepository =
                 appUserRepository;
+
+        this.notificationService =
+                notificationService;
+
+        this.studentDocumentService =
+                studentDocumentService;
     }
 
     @Transactional
@@ -114,10 +134,29 @@ public class DocumentReviewService {
                 request.decision()
         );
 
+        updateDocumentStatus(
+                document,
+                request.decision()
+        );
+
         DocumentReview savedReview =
                 documentReviewRepository.save(
                         review
                 );
+
+        createStudentDocumentReviewNotification(
+                document,
+                request.decision(),
+                normalizedComment
+        );
+
+        if (request.decision()
+                == DocumentReviewDecision.APPROVED) {
+
+            checkDocumentProcessCompletion(
+                    document
+            );
+        }
 
         return toResponse(
                 savedReview
@@ -358,6 +397,192 @@ public class DocumentReviewService {
             throw new ReviewerDormitoryAccessDeniedException(
                     document.getId()
             );
+        }
+    }
+
+    private void createStudentDocumentReviewNotification(
+            StudentDocument document,
+            DocumentReviewDecision decision,
+            String comment
+    ) {
+        AppUser studentUser =
+                document
+                        .getAdmission()
+                        .getStudent()
+                        .getUser();
+
+        String documentTypeName =
+                document
+                        .getDocumentType()
+                        .getName();
+
+        NotificationType notificationType;
+        String title;
+        String message;
+
+        switch (decision) {
+
+            case APPROVED -> {
+                notificationType =
+                        NotificationType.DOCUMENT_APPROVED;
+
+                title =
+                        "Belgeniz Onaylandı";
+
+                message =
+                        documentTypeName
+                                + " belgeniz onaylandı.";
+            }
+
+            case REJECTED -> {
+                notificationType =
+                        NotificationType.DOCUMENT_REJECTED;
+
+                title =
+                        "Belgeniz Reddedildi";
+
+                message =
+                        documentTypeName
+                                + " belgeniz reddedildi.";
+
+                if (comment != null) {
+                    message +=
+                            " Açıklama: "
+                                    + comment;
+                }
+            }
+
+            case REVISION_REQUIRED -> {
+                notificationType =
+                        NotificationType
+                                .DOCUMENT_REVISION_REQUIRED;
+
+                title =
+                        "Belge Revizyonu Gerekli";
+
+                message =
+                        documentTypeName
+                                + " belgeniz için revizyon istendi.";
+
+                if (comment != null) {
+                    message +=
+                            " Açıklama: "
+                                    + comment;
+                }
+            }
+
+            default ->
+                    throw new IllegalArgumentException(
+                            "Desteklenmeyen değerlendirme kararı: "
+                                    + decision
+                    );
+        }
+
+            notificationService
+                .createNotification(
+                        studentUser.getId(),
+                        notificationType,
+                        title,
+                        message,
+                        NotificationReferenceType.STUDENT_DOCUMENT,
+                        document.getId()
+                );
+    }
+
+    private void checkDocumentProcessCompletion(
+            StudentDocument document
+    ) {
+        Admission admission =
+                document.getAdmission();
+
+        DocumentCompletionResponse completion =
+                studentDocumentService
+                        .getCompletionStatus(
+                                admission.getId()
+                        );
+
+        if (!completion.completed()) {
+            return;
+        }
+
+        createStudentCompletionNotification(
+                admission
+        );
+
+        createDormitoryAdminCompletionNotifications(
+                admission
+        );
+    }
+
+    private void createStudentCompletionNotification(
+            Admission admission
+    ) {
+        AppUser studentUser =
+                admission
+                        .getStudent()
+                        .getUser();
+
+        notificationService
+                .createNotificationIfAbsent(
+                        studentUser.getId(),
+
+                        NotificationType
+                                .DOCUMENT_PROCESS_COMPLETED,
+
+                        "Belge Süreciniz Tamamlandı",
+
+                        "Tüm zorunlu belgeleriniz onaylandı. "
+                                + "Yurt kayıt süreciniz tamamlandı "
+                                + "ve yurda giriş yapabilirsiniz.",
+
+                        NotificationReferenceType.ADMISSION,
+
+                        admission.getId()
+                );
+    }
+
+    private void createDormitoryAdminCompletionNotifications(
+            Admission admission
+    ) {
+        Dormitory dormitory =
+                admission.getDormitory();
+
+        List<AppUser> dormitoryAdmins =
+                appUserRepository
+                        .findActiveDormitoryAdminsByDormitory(
+                                dormitory.getId()
+                        );
+
+        AppUser studentUser =
+                admission
+                        .getStudent()
+                        .getUser();
+
+        String studentFullName =
+                studentUser.getFirstName()
+                        + " "
+                        + studentUser.getLastName();
+
+        for (AppUser dormitoryAdmin : dormitoryAdmins) {
+
+            notificationService
+                    .createNotification(
+                            dormitoryAdmin.getId(),
+
+                            NotificationType
+                                    .DOCUMENT_PROCESS_COMPLETED,
+
+                            "Öğrenci Belge Sürecini Tamamladı",
+
+                            studentFullName
+                                    + " adlı öğrencinin tüm zorunlu "
+                                    + "belgeleri onaylandı. "
+                                    + "Öğrenci yurda giriş için hazır.",
+
+                            NotificationReferenceType.ADMISSION,
+
+                            admission.getId()
+                    );
         }
     }
 }

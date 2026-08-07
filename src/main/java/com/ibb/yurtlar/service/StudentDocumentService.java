@@ -39,6 +39,8 @@ import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
 import com.ibb.yurtlar.exception.UserIsNotReviewerException;
 import com.ibb.yurtlar.exception.AdmissionAccessDeniedException;
+import com.ibb.yurtlar.enums.NotificationReferenceType;
+import com.ibb.yurtlar.enums.NotificationType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -60,13 +62,16 @@ public class StudentDocumentService {
 
     private final AppUserRepository appUserRepository;
 
+    private final NotificationService notificationService;
+
     public StudentDocumentService(
             StudentDocumentRepository studentDocumentRepository,
             AdmissionRepository admissionRepository,
             TermDocumentRequirementRepository termDocumentRequirementRepository,
             FileStorageService fileStorageService,
             StudentDocumentMapper studentDocumentMapper,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            NotificationService notificationService
     ) {
         this.studentDocumentRepository =
                 studentDocumentRepository;
@@ -84,6 +89,8 @@ public class StudentDocumentService {
                 studentDocumentMapper;
 
         this.appUserRepository = appUserRepository;
+
+        this.notificationService = notificationService;
 
     }
 
@@ -243,27 +250,46 @@ public class StudentDocumentService {
         StudentDocument document =
                 new StudentDocument();
 
-        document.setAdmission(admission);
-        document.setDocumentType(documentType);
+        document.setAdmission(
+                admission
+        );
+
+        document.setDocumentType(
+                documentType
+        );
+
         applyStoredFileInfo(
                 document,
                 storedFileInfo
         );
+
         document.setStatus(
                 StudentDocumentStatus.UPLOADED
         );
 
         StudentDocument savedDocument =
-                studentDocumentRepository.save(document);
+                studentDocumentRepository
+                        .save(
+                                document
+                        );
+
+        createReviewerUploadNotification(
+                savedDocument
+        );
 
         return studentDocumentMapper
-                .toResponse(savedDocument);
+                .toResponse(
+                        savedDocument
+                );
     }
 
     private StudentDocumentResponse replaceExistingDocument(
             StudentDocument document,
             StoredFileInfo storedFileInfo
     ) {
+        StudentDocumentStatus previousStatus =
+                document.getStatus();
+
         String oldFilePath =
                 document.getFilePath();
 
@@ -280,12 +306,27 @@ public class StudentDocumentService {
                 LocalDateTime.now()
         );
 
-        studentDocumentRepository.saveAndFlush(document);
+        studentDocumentRepository
+                .saveAndFlush(
+                        document
+                );
 
-        fileStorageService.delete(oldFilePath);
+        if (previousStatus
+                == StudentDocumentStatus.REVISION_REQUIRED) {
+
+            createReviewerReUploadNotification(
+                    document
+            );
+        }
+
+        fileStorageService.delete(
+                oldFilePath
+        );
 
         return studentDocumentMapper
-        .toResponse(document);
+                .toResponse(
+                        document
+                );
     }
 
     private void applyStoredFileInfo(
@@ -884,5 +925,113 @@ public class StudentDocumentService {
         throw new InvalidAdminConfigurationException(
                 "Admin kullanıcısının yetki kapsamı geçersizdir."
         );
+    }
+
+    private void createReviewerUploadNotification(
+            StudentDocument document
+    ) {
+        Dormitory dormitory =
+                document
+                        .getAdmission()
+                        .getDormitory();
+
+        List<AppUser> reviewers =
+                appUserRepository
+                        .findActiveReviewersByDormitory(
+                                dormitory.getId()
+                        );
+
+        AppUser studentUser =
+                document
+                        .getAdmission()
+                        .getStudent()
+                        .getUser();
+
+        String studentName =
+                studentUser.getFirstName()
+                        + " "
+                        + studentUser.getLastName();
+
+        String documentName =
+                document
+                        .getDocumentType()
+                        .getName();
+
+        for (AppUser reviewer : reviewers) {
+
+            notificationService
+                    .createNotification(
+                            reviewer.getId(),
+
+                            NotificationType
+                                    .DOCUMENT_UPLOADED,
+
+                            "Yeni Belge Yüklendi",
+
+                            studentName
+                                    + ", "
+                                    + documentName
+                                    + " belgesini yükledi.",
+
+                            NotificationReferenceType
+                                    .STUDENT_DOCUMENT,
+
+                            document.getId()
+                    );
+        }
+    }
+
+    private void createReviewerReUploadNotification(
+            StudentDocument document
+    ) {
+        Dormitory dormitory =
+                document
+                        .getAdmission()
+                        .getDormitory();
+
+        List<AppUser> reviewers =
+                appUserRepository
+                        .findActiveReviewersByDormitory(
+                                dormitory.getId()
+                        );
+
+        AppUser studentUser =
+                document
+                        .getAdmission()
+                        .getStudent()
+                        .getUser();
+
+        String studentName =
+                studentUser.getFirstName()
+                        + " "
+                        + studentUser.getLastName();
+
+        String documentName =
+                document
+                        .getDocumentType()
+                        .getName();
+
+        for (AppUser reviewer : reviewers) {
+
+            notificationService
+                    .createNotification(
+                            reviewer.getId(),
+
+                            NotificationType
+                                    .DOCUMENT_REUPLOADED,
+
+                            "Belge Yeniden Yüklendi",
+
+                            studentName
+                                    + ", revizyon istenen "
+                                    + documentName
+                                    + " belgesini yeniden yükledi.",
+
+                            NotificationReferenceType
+                                    .STUDENT_DOCUMENT,
+
+                            document.getId()
+                    );
+        }
     }
 }

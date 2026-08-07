@@ -30,6 +30,8 @@ import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
 import com.ibb.yurtlar.exception.InvalidCredentialsException;
 import com.ibb.yurtlar.exception.UserIsNotAdminException;
 import com.ibb.yurtlar.repository.AppUserRepository;
+import com.ibb.yurtlar.enums.NotificationReferenceType;
+import com.ibb.yurtlar.enums.NotificationType;
 
 import java.util.List;
 
@@ -41,19 +43,23 @@ public class AdmissionService {
     private final DormitoryTermRepository dormitoryTermRepository;
     private final DormitoryRepository dormitoryRepository;
     private final AppUserRepository appUserRepository;
+    private final NotificationService notificationService;
 
     public AdmissionService(
             AdmissionRepository admissionRepository,
             StudentRepository studentRepository,
             DormitoryTermRepository dormitoryTermRepository,
             DormitoryRepository dormitoryRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            NotificationService notificationService
     ) {
         this.admissionRepository = admissionRepository;
         this.studentRepository = studentRepository;
         this.dormitoryTermRepository = dormitoryTermRepository;
         this.dormitoryRepository = dormitoryRepository;
         this.appUserRepository = appUserRepository;
+        this.notificationService = notificationService;
+
     }
 
     @Transactional
@@ -233,7 +239,7 @@ public class AdmissionService {
     }
 
     @Transactional
-    public AdmissionResponse updateStatus(
+        public AdmissionResponse updateStatus(
             Long id,
             UpdateAdmissionStatusRequest request,
             String adminEmail
@@ -253,8 +259,11 @@ public class AdmissionService {
                 admission
         );
 
-        admission.setStatus(
-                request.status()
+        admission.setStatus(request.status()
+        );
+
+        createAdmissionNotification(
+                admission
         );
 
         return toResponse(
@@ -602,6 +611,62 @@ public class AdmissionService {
                     "Bu yurt için kabul kaydı oluşturma yetkiniz bulunmamaktadır."
             );
         }
+    }
+
+    private void createAdmissionNotification(
+            Admission admission
+    ) {
+
+        AdmissionStatus status =
+                admission.getStatus();
+
+        if (status != AdmissionStatus.APPROVED
+                && status != AdmissionStatus.REJECTED) {
+            return;
+        }
+
+        AppUser studentUser =
+                admission
+                        .getStudent()
+                        .getUser();
+
+        String title;
+
+        String message;
+
+        if (status == AdmissionStatus.APPROVED) {
+
+            title =
+                    "Yurt Kabulünüz Onaylandı";
+
+            message =
+                    "Yurt kabul başvurunuz onaylandı.";
+
+        } else {
+
+            title =
+                    "Yurt Kabulünüz Reddedildi";
+
+            message =
+                    "Yurt kabul başvurunuz reddedildi.";
+        }
+
+        notificationService.createNotification(
+
+                studentUser.getId(),
+
+                status == AdmissionStatus.APPROVED
+                        ? NotificationType.ADMISSION_APPROVED
+                        : NotificationType.ADMISSION_REJECTED,
+
+                title,
+
+                message,
+
+                NotificationReferenceType.ADMISSION,
+
+                admission.getId()
+        );
     }
 
 }
