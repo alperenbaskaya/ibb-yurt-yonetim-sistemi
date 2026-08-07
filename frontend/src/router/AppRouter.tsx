@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { FeaturePlaceholderPage } from '../components/common/FeaturePlaceholderPage'
 import { LoginPage } from '../features/auth/LoginPage'
+import { NotificationPage } from '../features/notifications/NotificationPage'
 import { AppLayout } from '../layouts/AppLayout'
 import { ForbiddenPage } from '../pages/ForbiddenPage'
 import { HomePage } from '../pages/HomePage'
@@ -28,15 +29,7 @@ export function AppRouter() {
         <Route element={<AppLayout />}>
           <Route path="/home" element={<HomePage />} />
           <Route path="/profile" element={<ProfilePage />} />
-          <Route
-            path="/notifications"
-            element={
-              <FeaturePlaceholderPage
-                title="Bildirimler"
-                description="Hesabınıza ait sistem bildirimleri bu alanda görüntülenecektir."
-              />
-            }
-          />
+          <Route path="/notifications" element={<NotificationPage />} />
           <Route path="/forbidden" element={<ForbiddenPage />} />
 
           <Route element={<RequireRole role="STUDENT" />}>

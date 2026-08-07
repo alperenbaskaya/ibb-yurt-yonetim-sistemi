@@ -1,6 +1,7 @@
 import { Bell, ChevronDown, LogOut, Menu, UserRound } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../features/auth/useAuth'
+import { useMyUnreadCount } from '../../features/notifications/notificationQueries'
 import type { UserCategory } from '../../types/userCategory'
 import { getPageTitle } from '../../router/navigation'
 import { userCategoryLabels } from '../../utils/userCategory'
@@ -13,12 +14,16 @@ interface TopbarProps {
 export function Topbar({ category, onOpenSidebar }: TopbarProps) {
   const location = useLocation()
   const { user, logout } = useAuth()
+  const unreadCountQuery = useMyUnreadCount(user?.userId ?? null)
 
   if (!user) {
     return null
   }
 
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
+  const unreadCount = unreadCountQuery.data?.unreadCount ?? 0
+  const notificationLabel =
+    unreadCount > 0 ? `Bildirimler, ${unreadCount} okunmamış` : 'Bildirimler'
 
   return (
     <header className="sticky top-0 z-30 flex h-20 items-center border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-8">
@@ -42,9 +47,14 @@ export function Topbar({ category, onOpenSidebar }: TopbarProps) {
         <Link
           to="/notifications"
           className="relative flex size-10 items-center justify-center text-slate-600 hover:bg-slate-100 hover:text-blue-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700"
-          aria-label="Bildirimler"
+          aria-label={notificationLabel}
         >
           <Bell aria-hidden="true" size={20} />
+          {unreadCount > 0 && (
+            <span className="absolute right-0.5 top-0.5 flex min-w-4.5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-[18px] text-white ring-2 ring-white">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </Link>
 
         <div className="hidden h-8 w-px bg-slate-200 sm:block" />
