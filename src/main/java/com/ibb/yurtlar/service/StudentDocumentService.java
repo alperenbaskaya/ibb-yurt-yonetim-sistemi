@@ -37,6 +37,7 @@ import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
 import com.ibb.yurtlar.exception.StudentDocumentAccessDeniedException;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
+import com.ibb.yurtlar.exception.InvalidDocumentReplacementStateException;
 import com.ibb.yurtlar.exception.UserIsNotReviewerException;
 import com.ibb.yurtlar.exception.AdmissionAccessDeniedException;
 import com.ibb.yurtlar.enums.NotificationReferenceType;
@@ -134,19 +135,23 @@ public class StudentDocumentService {
             );
         }
 
-        StoredFileInfo storedFileInfo =
-                fileStorageService.storeStudentDocument(
-                        file,
-                        admission.getId(),
-                        documentType.getId()
-                );
-
         Optional<StudentDocument> existingDocument =
                 studentDocumentRepository
                         .findByAdmission_IdAndDocumentType_Id(
                                 admission.getId(),
                                 documentType.getId()
                         );
+
+        existingDocument.ifPresent(
+                this::validateReplacementAllowed
+        );
+
+        StoredFileInfo storedFileInfo =
+                fileStorageService.storeStudentDocument(
+                        file,
+                        admission.getId(),
+                        documentType.getId()
+                );
 
         if (existingDocument.isPresent()) {
             return replaceExistingDocument(
@@ -327,6 +332,19 @@ public class StudentDocumentService {
                 .toResponse(
                         document
                 );
+    }
+
+    private void validateReplacementAllowed(
+            StudentDocument document
+    ) {
+        if (document.getStatus()
+                != StudentDocumentStatus.REVISION_REQUIRED) {
+
+            throw new InvalidDocumentReplacementStateException(
+                    document.getId(),
+                    document.getStatus()
+            );
+        }
     }
 
     private void applyStoredFileInfo(

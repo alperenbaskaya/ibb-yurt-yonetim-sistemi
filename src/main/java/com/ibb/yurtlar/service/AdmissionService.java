@@ -27,6 +27,7 @@ import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.exception.AdmissionAccessDeniedException;
 import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
+import com.ibb.yurtlar.exception.InvalidAdmissionStatusTransitionException;
 import com.ibb.yurtlar.exception.InvalidCredentialsException;
 import com.ibb.yurtlar.exception.UserIsNotAdminException;
 import com.ibb.yurtlar.repository.AppUserRepository;
@@ -259,7 +260,13 @@ public class AdmissionService {
                 admission
         );
 
-        admission.setStatus(request.status()
+        validateStatusTransition(
+                admission,
+                request.status()
+        );
+
+        admission.setStatus(
+                request.status()
         );
 
         createAdmissionNotification(
@@ -269,6 +276,27 @@ public class AdmissionService {
         return toResponse(
                 admission
         );
+    }
+
+    private void validateStatusTransition(
+            Admission admission,
+            AdmissionStatus requestedStatus
+    ) {
+        AdmissionStatus currentStatus =
+                admission.getStatus();
+
+        boolean validTransition =
+                currentStatus == AdmissionStatus.PENDING
+                        && (requestedStatus == AdmissionStatus.APPROVED
+                        || requestedStatus == AdmissionStatus.REJECTED);
+
+        if (!validTransition) {
+            throw new InvalidAdmissionStatusTransitionException(
+                    admission.getId(),
+                    currentStatus,
+                    requestedStatus
+            );
+        }
     }
 
     private Admission findAdmissionById(Long id) {

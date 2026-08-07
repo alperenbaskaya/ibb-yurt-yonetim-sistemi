@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import com.ibb.yurtlar.exception.ActiveAdmissionNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -15,6 +16,76 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(
+            AccessDeniedException exception,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = createApiError(
+                HttpStatus.FORBIDDEN,
+                "Bu işlem için yetkiniz bulunmamaktadır.",
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(apiError);
+    }
+
+    @ExceptionHandler(NotificationNotFoundException.class)
+    public ResponseEntity<ApiError> handleNotificationNotFound(
+            NotificationNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = createApiError(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(apiError);
+    }
+
+    @ExceptionHandler(InvalidDocumentReplacementStateException.class)
+    public ResponseEntity<ApiError>
+    handleInvalidDocumentReplacementState(
+            InvalidDocumentReplacementStateException exception,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = createApiError(
+                HttpStatus.CONFLICT,
+                exception.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(apiError);
+    }
+
+    @ExceptionHandler(InvalidAdmissionStatusTransitionException.class)
+    public ResponseEntity<ApiError>
+    handleInvalidAdmissionStatusTransition(
+            InvalidAdmissionStatusTransitionException exception,
+            HttpServletRequest request
+    ) {
+        ApiError apiError = createApiError(
+                HttpStatus.CONFLICT,
+                exception.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(apiError);
+    }
 
     @ExceptionHandler(DormitoryTermAlreadyExistsException.class)
     public ResponseEntity<ApiError> handleDormitoryTermAlreadyExists(

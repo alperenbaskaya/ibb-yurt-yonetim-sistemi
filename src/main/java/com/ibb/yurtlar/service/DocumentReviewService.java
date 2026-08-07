@@ -134,11 +134,6 @@ public class DocumentReviewService {
                 request.decision()
         );
 
-        updateDocumentStatus(
-                document,
-                request.decision()
-        );
-
         DocumentReview savedReview =
                 documentReviewRepository.save(
                         review

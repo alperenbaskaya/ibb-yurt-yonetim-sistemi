@@ -7,6 +7,7 @@ import com.ibb.yurtlar.entity.Notification;
 import com.ibb.yurtlar.enums.NotificationReferenceType;
 import com.ibb.yurtlar.enums.NotificationType;
 import com.ibb.yurtlar.exception.UserNotFoundException;
+import com.ibb.yurtlar.exception.NotificationNotFoundException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.NotificationRepository;
 import org.springframework.security.access.AccessDeniedException;
@@ -206,9 +207,8 @@ public class NotificationService {
                                 notificationId
                         )
                         .orElseThrow(
-                                () -> new IllegalArgumentException(
-                                        "Bildirim bulunamadı. ID: "
-                                                + notificationId
+                                () -> new NotificationNotFoundException(
+                                        notificationId
                                 )
                         );
 
