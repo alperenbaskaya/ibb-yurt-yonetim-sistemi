@@ -2,6 +2,10 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { FeaturePlaceholderPage } from '../components/common/FeaturePlaceholderPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { NotificationPage } from '../features/notifications/NotificationPage'
+import { MyReviewsPage } from '../features/reviewer/MyReviewsPage'
+import { PendingDocumentsPage } from '../features/reviewer/PendingDocumentsPage'
+import { ReviewerDashboardPage } from '../features/reviewer/ReviewerDashboardPage'
+import { ReviewerStudentsGapPage } from '../features/reviewer/ReviewerStudentsGapPage'
 import { StudentDashboardPage } from '../features/student/StudentDashboardPage'
 import { StudentDocumentsPage } from '../features/student/StudentDocumentsPage'
 import { AppLayout } from '../layouts/AppLayout'
@@ -48,39 +52,19 @@ export function AppRouter() {
           <Route element={<RequireRole role="REVIEWER" />}>
             <Route
               path="/reviewer/dashboard"
-              element={
-                <FeaturePlaceholderPage
-                  title="Kontrol Paneli"
-                  description={placeholderDescriptions.dashboard}
-                />
-              }
+              element={<ReviewerDashboardPage />}
             />
             <Route
               path="/reviewer/documents"
-              element={
-                <FeaturePlaceholderPage
-                  title="Bekleyen Belgeler"
-                  description="Değerlendirme bekleyen öğrenci belgeleri bu alanda sunulacaktır."
-                />
-              }
+              element={<PendingDocumentsPage />}
             />
             <Route
               path="/reviewer/students"
-              element={
-                <FeaturePlaceholderPage
-                  title="Öğrenciler"
-                  description={placeholderDescriptions.students}
-                />
-              }
+              element={<ReviewerStudentsGapPage />}
             />
             <Route
               path="/reviewer/reviews"
-              element={
-                <FeaturePlaceholderPage
-                  title="Değerlendirmelerim"
-                  description="Gerçekleştirdiğiniz belge değerlendirmeleri bu alanda listelenecektir."
-                />
-              }
+              element={<MyReviewsPage />}
             />
           </Route>
 
