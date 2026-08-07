@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { FeaturePlaceholderPage } from '../components/common/FeaturePlaceholderPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { NotificationPage } from '../features/notifications/NotificationPage'
+import { StudentDashboardPage } from '../features/student/StudentDashboardPage'
+import { StudentDocumentsPage } from '../features/student/StudentDocumentsPage'
 import { AppLayout } from '../layouts/AppLayout'
 import { ForbiddenPage } from '../pages/ForbiddenPage'
 import { HomePage } from '../pages/HomePage'
@@ -35,21 +37,11 @@ export function AppRouter() {
           <Route element={<RequireRole role="STUDENT" />}>
             <Route
               path="/student/dashboard"
-              element={
-                <FeaturePlaceholderPage
-                  title="Kontrol Paneli"
-                  description={placeholderDescriptions.dashboard}
-                />
-              }
+              element={<StudentDashboardPage />}
             />
             <Route
               path="/student/documents"
-              element={
-                <FeaturePlaceholderPage
-                  title="Belgelerim"
-                  description="Zorunlu belgelerinizin durumu ve belge yükleme işlemleri bu alanda sunulacaktır."
-                />
-              }
+              element={<StudentDocumentsPage />}
             />
           </Route>
 
