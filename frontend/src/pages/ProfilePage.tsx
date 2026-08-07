@@ -1,23 +1,11 @@
-import { Building2, Mail, ShieldCheck, UserRound } from 'lucide-react'
+import { Building2, Info, Mail, ShieldCheck, UserRound } from 'lucide-react'
 import { PageHeader } from '../components/common/PageHeader'
 import { StatusBadge } from '../components/common/StatusBadge'
 import { UserCategoryBadge } from '../components/common/UserCategoryBadge'
 import { useAuth } from '../features/auth/useAuth'
-import type { UserCategory } from '../types/userCategory'
 import { getUserCategory, userCategoryLabels } from '../utils/userCategory'
 
-const categoryDescriptions: Record<UserCategory, string> = {
-  STUDENT:
-    'Bu sistemde size tanımlanan belge süreçlerini takip edebilir ve gerekli belgelerinizi yönetebilirsiniz.',
-  REVIEWER:
-    'Bağlı olduğunuz yurttaki öğrenci belgelerini inceleyebilir ve değerlendirme süreçlerini yürütebilirsiniz.',
-  DORMITORY_ADMIN:
-    'Bağlı olduğunuz yurdun kabul, öğrenci, değerlendirici ve belge süreçlerini yönetebilirsiniz.',
-  GLOBAL_ADMIN:
-    'Sistemdeki yurtları, kullanıcıları ve ortak tanımları global kapsamda yönetebilirsiniz.',
-}
-
-export function HomePage() {
+export function ProfilePage() {
   const { user } = useAuth()
 
   if (!user) {
@@ -33,8 +21,8 @@ export function HomePage() {
   return (
     <div>
       <PageHeader
-        title={`Hoş geldiniz, ${user.firstName}`}
-        description="Kişisel hesap ve sistem erişim bilgilerinizi buradan görüntüleyebilirsiniz."
+        title="Profil"
+        description="Sistemde kayıtlı hesap ve yetki bilgilerinizi görüntüleyin."
       />
 
       <section className="mt-7 border border-slate-200 bg-white shadow-sm">
@@ -54,26 +42,24 @@ export function HomePage() {
           </div>
         </div>
 
-        <dl className="grid gap-px bg-slate-200 sm:grid-cols-2 lg:grid-cols-3">
-          <IdentityItem
-            icon={Mail}
-            label="E-posta"
-            value={user.email}
-          />
-          <IdentityItem
+        <dl className="grid gap-px bg-slate-200 sm:grid-cols-2">
+          <ProfileField icon={UserRound} label="Ad" value={user.firstName} />
+          <ProfileField icon={UserRound} label="Soyad" value={user.lastName} />
+          <ProfileField icon={Mail} label="E-posta" value={user.email} />
+          <ProfileField
             icon={ShieldCheck}
-            label="Kullanıcı kategorisi"
+            label="Rol"
             value={userCategoryLabels[category]}
           />
           {user.adminScope && (
-            <IdentityItem
+            <ProfileField
               icon={ShieldCheck}
               label="Yönetim kapsamı"
               value={user.adminScope === 'GLOBAL' ? 'Global' : 'Yurt'}
             />
           )}
           {user.dormitoryName && (
-            <IdentityItem
+            <ProfileField
               icon={Building2}
               label="Bağlı yurt"
               value={user.dormitoryName}
@@ -82,21 +68,25 @@ export function HomePage() {
         </dl>
       </section>
 
-      <aside className="mt-6 border-l-4 border-blue-700 bg-blue-50 px-5 py-4 text-sm leading-6 text-blue-950">
-        <p className="font-semibold">Rolünüze özel sistem kullanımı</p>
-        <p className="mt-1">{categoryDescriptions[category]}</p>
+      <aside className="mt-6 flex gap-3 border border-blue-200 bg-blue-50 px-5 py-4 text-sm leading-6 text-blue-950">
+        <Info aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
+        <p>
+          Profil bilgileri bu ekranda yalnızca görüntülenebilir. Mevcut
+          backend sürümünde kullanıcının kendi profilini güncellemesine yönelik
+          bir servis bulunmamaktadır.
+        </p>
       </aside>
     </div>
   )
 }
 
-interface IdentityItemProps {
-  icon: typeof Mail
+interface ProfileFieldProps {
+  icon: typeof UserRound
   label: string
   value: string
 }
 
-function IdentityItem({ icon: Icon, label, value }: IdentityItemProps) {
+function ProfileField({ icon: Icon, label, value }: ProfileFieldProps) {
   return (
     <div className="bg-white p-6">
       <dt className="flex items-center gap-2 text-sm font-medium text-slate-500">
