@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { PageHeader } from '../../components/common/PageHeader'
 import { getApiErrorMessage } from '../../utils/apiError'
+import { downloadBlob } from '../../utils/downloadBlob'
 import { formatDateTime } from '../../utils/formatDateTime'
 import { formatFileSize } from '../../utils/formatFileSize'
 import { useAuth } from '../auth/useAuth'
@@ -18,7 +19,7 @@ export function DormitoryDocumentsPage() {
   const admissionsQuery = useDormitoryAdmissions(userId)
   const documentsQuery = useAdmissionDocuments(userId, admissionId)
   const downloadMutation = useDownloadAdminDocument()
-  const download = (id: number, fileName: string) => downloadMutation.mutate(id, { onSuccess: ({ blob }) => { const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = fileName; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url) }, onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Belge indirilemedi.')) })
+  const download = (id: number, fileName: string) => downloadMutation.mutate(id, { onSuccess: ({ blob }) => downloadBlob(blob, fileName), onError: (error: unknown) => toast.error(getApiErrorMessage(error, 'Belge indirilemedi.')) })
 
   return <section><PageHeader title="Belgeler" description="Aktif dönem kabul kayıtları üzerinden öğrencilerin belge durumlarını yönetsel amaçla izleyin." />
     <div className="mt-6 border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">Backend yurt-geneli tek bir belge listesi sunmadığı için belgeler, yetkili kabul kaydı seçilerek görüntülenir. Bu ekran değerlendirme kararı vermez.</div>

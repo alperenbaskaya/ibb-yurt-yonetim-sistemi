@@ -9,6 +9,7 @@ import type {
   UploadPeriodStatus,
 } from '../../types/student'
 import { getApiErrorMessage } from '../../utils/apiError'
+import { downloadBlob } from '../../utils/downloadBlob'
 import { formatDateTime } from '../../utils/formatDateTime'
 import { useAuth } from '../auth/useAuth'
 import { DocumentUploadControl } from './DocumentUploadControl'
@@ -111,14 +112,7 @@ export function StudentDocumentsPage() {
   const handleDownload = (studentDocumentId: number, fileName: string) => {
     downloadMutation.mutate(studentDocumentId, {
       onSuccess: ({ blob }) => {
-        const objectUrl = URL.createObjectURL(blob)
-        const anchor = document.createElement('a')
-        anchor.href = objectUrl
-        anchor.download = fileName
-        document.body.appendChild(anchor)
-        anchor.click()
-        anchor.remove()
-        URL.revokeObjectURL(objectUrl)
+        downloadBlob(blob, fileName)
       },
       onError: (downloadError: unknown) => toast.error(getApiErrorMessage(downloadError, 'Belge indirilemedi. Lütfen tekrar deneyin.')),
     })

@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { PageHeader } from '../../components/common/PageHeader'
 import type { CreateDocumentReviewRequest } from '../../types/reviewer'
 import { getApiErrorMessage } from '../../utils/apiError'
+import { downloadBlob } from '../../utils/downloadBlob'
 import { formatDateTime } from '../../utils/formatDateTime'
 import { formatFileSize } from '../../utils/formatFileSize'
 import { useAuth } from '../auth/useAuth'
@@ -47,14 +48,7 @@ export function PendingDocumentsPage() {
   const handleDownload = (documentId: number, fileName: string) => {
     downloadMutation.mutate(documentId, {
       onSuccess: ({ blob }) => {
-        const objectUrl = URL.createObjectURL(blob)
-        const anchor = document.createElement('a')
-        anchor.href = objectUrl
-        anchor.download = fileName
-        document.body.appendChild(anchor)
-        anchor.click()
-        anchor.remove()
-        URL.revokeObjectURL(objectUrl)
+        downloadBlob(blob, fileName)
       },
       onError: (error: unknown) => toast.error(
         getApiErrorMessage(error, 'Belge indirilemedi. Lütfen tekrar deneyin.'),
