@@ -16,6 +16,22 @@ import java.util.Optional;
 public interface StudentDocumentRepository
         extends JpaRepository<StudentDocument, Long> {
 
+    @Query("""
+        SELECT CASE WHEN COUNT(document) > 0 THEN true ELSE false END
+        FROM StudentDocument document
+        JOIN document.admission admission
+        WHERE document.id = :documentId
+          AND admission.dormitory.id = :dormitoryId
+          AND admission.dormitoryTerm.id = :activeTermId
+          AND admission.status =
+              com.ibb.yurtlar.enums.AdmissionStatus.APPROVED
+        """)
+    boolean isWithinReviewerDocumentScope(
+            @Param("documentId") Long documentId,
+            @Param("dormitoryId") Long dormitoryId,
+            @Param("activeTermId") Long activeTermId
+    );
+
     Optional<StudentDocument>
     findByAdmission_IdAndDocumentType_Id(
             Long admissionId,

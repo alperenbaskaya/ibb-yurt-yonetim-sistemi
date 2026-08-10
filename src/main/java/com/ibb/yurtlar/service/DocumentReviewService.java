@@ -100,7 +100,7 @@ public class DocumentReviewService {
                         reviewerEmail
                 );
 
-        validateReviewerDormitoryAccess(
+        studentDocumentService.validateReviewerDocumentAccess(
                 reviewer,
                 document
         );
@@ -187,7 +187,7 @@ public class DocumentReviewService {
                         reviewerEmail
                 );
 
-        validateReviewerDormitoryAccess(
+        studentDocumentService.validateReviewerDocumentAccess(
                 reviewer,
                 document
         );
@@ -368,40 +368,6 @@ public class DocumentReviewService {
         }
 
         return reviewer;
-    }
-
-    private void validateReviewerDormitoryAccess(
-            AppUser reviewer,
-            StudentDocument document
-    ) {
-        Dormitory reviewerDormitory =
-                reviewer.getDormitory();
-
-        if (reviewerDormitory == null) {
-            throw new InvalidUserConfigurationException(
-                    "Reviewer kullanıcısına bir yurt atanmamıştır."
-            );
-        }
-
-        Admission admission =
-                document.getAdmission();
-
-        Dormitory documentDormitory =
-                admission.getDormitory();
-
-        boolean sameDormitory =
-                documentDormitory != null
-                        && reviewerDormitory
-                        .getId()
-                        .equals(
-                                documentDormitory.getId()
-                        );
-
-        if (!sameDormitory) {
-            throw new ReviewerDormitoryAccessDeniedException(
-                    document.getId()
-            );
-        }
     }
 
     private void createStudentDocumentReviewNotification(

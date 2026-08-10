@@ -22,6 +22,7 @@ import com.ibb.yurtlar.exception.StudentDocumentNotFoundException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.StudentDocumentRepository;
+import com.ibb.yurtlar.repository.DormitoryTermRepository;
 import com.ibb.yurtlar.repository.TermDocumentRequirementRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,7 @@ import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
 import com.ibb.yurtlar.exception.InvalidDocumentReplacementStateException;
 import com.ibb.yurtlar.exception.UserIsNotReviewerException;
 import com.ibb.yurtlar.exception.AdmissionAccessDeniedException;
+import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
 import com.ibb.yurtlar.enums.NotificationReferenceType;
 import com.ibb.yurtlar.enums.NotificationType;
 
@@ -69,6 +71,8 @@ public class StudentDocumentService {
 
     private final AppUserRepository appUserRepository;
 
+    private final DormitoryTermRepository dormitoryTermRepository;
+
     private final NotificationService notificationService;
     private final AuditLogService auditLogService;
 
@@ -80,6 +84,7 @@ public class StudentDocumentService {
             TransactionalFileLifecycleService transactionalFileLifecycleService,
             StudentDocumentMapper studentDocumentMapper,
             AppUserRepository appUserRepository,
+            DormitoryTermRepository dormitoryTermRepository,
             NotificationService notificationService,
             AuditLogService auditLogService
     ) {
@@ -102,6 +107,8 @@ public class StudentDocumentService {
                 studentDocumentMapper;
 
         this.appUserRepository = appUserRepository;
+
+        this.dormitoryTermRepository = dormitoryTermRepository;
 
         this.notificationService = notificationService;
         this.auditLogService = auditLogService;
@@ -719,7 +726,7 @@ public class StudentDocumentService {
                     );
 
             case REVIEWER ->
-                    validateDormitoryAccess(
+                    validateReviewerDocumentAccess(
                             authenticatedUser,
                             document
                     );
@@ -781,6 +788,36 @@ public class StudentDocumentService {
             throw new StudentDocumentAccessDeniedException(
                     document.getId()
             );
+        }
+    }
+
+    void validateReviewerDocumentAccess(
+            AppUser reviewer,
+            StudentDocument document
+    ) {
+        if (reviewer.getRole() != Role.REVIEWER || !reviewer.isActive()) {
+            throw new StudentDocumentAccessDeniedException(document.getId());
+        }
+
+        Dormitory reviewerDormitory = reviewer.getDormitory();
+
+        if (reviewerDormitory == null) {
+            throw new StudentDocumentAccessDeniedException(document.getId());
+        }
+
+        DormitoryTerm activeTerm = dormitoryTermRepository
+                .findByActiveTrue()
+                .orElseThrow(ActiveDormitoryTermNotFoundException::new);
+
+        boolean withinReviewerScope = studentDocumentRepository
+                .isWithinReviewerDocumentScope(
+                        document.getId(),
+                        reviewerDormitory.getId(),
+                        activeTerm.getId()
+                );
+
+        if (!withinReviewerScope) {
+            throw new StudentDocumentAccessDeniedException(document.getId());
         }
     }
 
@@ -913,7 +950,7 @@ public class StudentDocumentService {
         switch (authenticatedUser.getRole()) {
 
             case REVIEWER ->
-                    validateUserDormitoryMatchesAdmission(
+                    validateReviewerAdmissionAccess(
                             authenticatedUser,
                             admission
                     );
@@ -954,6 +991,33 @@ public class StudentDocumentService {
             throw new AdmissionAccessDeniedException(
                     admission.getId()
             );
+        }
+    }
+
+    private void validateReviewerAdmissionAccess(
+            AppUser reviewer,
+            Admission admission
+    ) {
+        if (reviewer.getRole() != Role.REVIEWER || !reviewer.isActive()) {
+            throw new AdmissionAccessDeniedException(admission.getId());
+        }
+
+        DormitoryTerm activeTerm = dormitoryTermRepository
+                .findByActiveTrue()
+                .orElseThrow(ActiveDormitoryTermNotFoundException::new);
+
+        Dormitory reviewerDormitory = reviewer.getDormitory();
+        Dormitory admissionDormitory = admission.getDormitory();
+
+        boolean withinReviewerScope = reviewerDormitory != null
+                && admissionDormitory != null
+                && reviewerDormitory.getId().equals(admissionDormitory.getId())
+                && admission.getDormitoryTerm() != null
+                && activeTerm.getId().equals(admission.getDormitoryTerm().getId())
+                && admission.getStatus() == AdmissionStatus.APPROVED;
+
+        if (!withinReviewerScope) {
+            throw new AdmissionAccessDeniedException(admission.getId());
         }
     }
 
