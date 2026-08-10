@@ -21,6 +21,7 @@ import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DocumentReviewRepository;
 import com.ibb.yurtlar.repository.StudentDocumentRepository;
+import com.ibb.yurtlar.repository.AdmissionRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,6 +53,7 @@ public class DocumentReviewService {
 
     private final StudentDocumentService
             studentDocumentService;
+    private final AdmissionRepository admissionRepository;
     private final AuditLogService auditLogService;
 
     public DocumentReviewService(
@@ -60,6 +62,7 @@ public class DocumentReviewService {
             AppUserRepository appUserRepository,
             NotificationService notificationService,
             StudentDocumentService studentDocumentService,
+            AdmissionRepository admissionRepository,
             AuditLogService auditLogService
     ) {
         this.documentReviewRepository =
@@ -76,6 +79,7 @@ public class DocumentReviewService {
 
         this.studentDocumentService =
                 studentDocumentService;
+        this.admissionRepository = admissionRepository;
         this.auditLogService = auditLogService;
     }
 
@@ -459,17 +463,24 @@ public class DocumentReviewService {
                 );
     }
 
-    private void checkDocumentProcessCompletion(
+    void checkDocumentProcessCompletion(
             StudentDocument document,
             String reviewerEmail
     ) {
         Admission admission =
                 document.getAdmission();
 
+        // Completion belongs to one admission. Serializing on that row makes
+        // the following completion check and both absent-check/insert pairs
+        // atomic with respect to other reviews for the same process.
+        Admission lockedAdmission = admissionRepository
+                .findByIdForDocumentCompletionUpdate(admission.getId())
+                .orElseThrow(() -> new AdmissionNotFoundException(admission.getId()));
+
         DocumentCompletionResponse completion =
                 studentDocumentService
                         .getCompletionStatus(
-                                admission.getId()
+                                lockedAdmission.getId()
                         );
 
         if (!completion.completed()) {
@@ -477,18 +488,18 @@ public class DocumentReviewService {
         }
 
         createStudentCompletionNotification(
-                admission
+                lockedAdmission
         );
 
         createDormitoryAdminCompletionNotifications(
-                admission
+                lockedAdmission
         );
 
-        AppUser studentUser = admission.getStudent().getUser();
+        AppUser studentUser = lockedAdmission.getStudent().getUser();
         String studentName = studentUser.getFirstName() + " " + studentUser.getLastName();
         auditLogService.recordDocumentProcessCompletedIfAbsent(
                 reviewerEmail,
-                admission,
+                lockedAdmission,
                 studentName + " öğrencisinin zorunlu belge süreci tamamlandı."
         );
     }
@@ -571,7 +582,7 @@ public class DocumentReviewService {
         for (AppUser dormitoryAdmin : dormitoryAdmins) {
 
             notificationService
-                    .createNotification(
+                    .createNotificationIfAbsent(
                             dormitoryAdmin.getId(),
 
                             NotificationType

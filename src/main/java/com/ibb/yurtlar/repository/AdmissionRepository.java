@@ -6,11 +6,23 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.ibb.yurtlar.enums.AdmissionStatus;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 
 import java.util.Optional;
 import java.util.List;
 
 public interface AdmissionRepository extends JpaRepository<Admission, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT admission
+        FROM Admission admission
+        WHERE admission.id = :admissionId
+        """)
+    Optional<Admission> findByIdForDocumentCompletionUpdate(
+            @Param("admissionId") Long admissionId
+    );
 
     boolean existsByDormitoryTerm_Id(Long dormitoryTermId);
 
