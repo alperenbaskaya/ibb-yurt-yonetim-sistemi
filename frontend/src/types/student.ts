@@ -18,6 +18,33 @@ export type DocumentReviewDecision =
   | 'REJECTED'
   | 'REVISION_REQUIRED'
 
+export type StudentTimelineAction =
+  | 'ADMISSION_APPROVED'
+  | 'ADMISSION_REJECTED'
+  | 'DOCUMENT_UPLOADED'
+  | 'DOCUMENT_REUPLOADED'
+  | 'DOCUMENT_APPROVED'
+  | 'DOCUMENT_REJECTED'
+  | 'DOCUMENT_REVISION_REQUIRED'
+  | 'DOCUMENT_PROCESS_COMPLETED'
+
+export interface StudentProcessTimelineItemResponse {
+  key: string
+  action: StudentTimelineAction
+  documentTypeId: number | null
+  documentTypeName: string | null
+  description: string
+  createdAt: string
+  reviewDecision: DocumentReviewDecision | null
+  reviewComment: string | null
+}
+
+export interface StudentProcessTimelineResponse {
+  dormitoryTermId: number
+  dormitoryTermName: string
+  items: StudentProcessTimelineItemResponse[]
+}
+
 export interface StudentDocumentRequirementStatusResponse {
   requirementId: number
   documentTypeId: number

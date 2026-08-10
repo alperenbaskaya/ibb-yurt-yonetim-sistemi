@@ -4,6 +4,7 @@ import type {
   StudentDocumentRequirementStatusResponse,
   StudentDocumentResponse,
   StudentDocumentUploadRequest,
+  StudentProcessTimelineResponse,
 } from '../types/student'
 import { httpClient } from './httpClient'
 
@@ -12,6 +13,10 @@ export async function getMyStudentDashboard(): Promise<StudentDashboardResponse>
     '/student-dashboard/me',
   )
   return response.data
+}
+
+export async function getMyProcessTimeline(): Promise<StudentProcessTimelineResponse> {
+  return (await httpClient.get<StudentProcessTimelineResponse>('/student-history/me')).data
 }
 
 export async function getMyDocumentRequirements(): Promise<

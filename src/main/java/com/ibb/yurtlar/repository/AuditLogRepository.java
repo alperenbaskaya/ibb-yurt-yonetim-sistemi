@@ -45,4 +45,16 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
             @Param("actions") Collection<AuditAction> actions,
             Pageable pageable
     );
+
+    List<AuditLog> findByEntityTypeAndEntityIdAndActionInOrderByCreatedAtAscIdAsc(
+            AuditEntityType entityType,
+            Long entityId,
+            Collection<AuditAction> actions
+    );
+
+    List<AuditLog> findByEntityTypeAndEntityIdInAndActionInOrderByCreatedAtAscIdAsc(
+            AuditEntityType entityType,
+            Collection<Long> entityIds,
+            Collection<AuditAction> actions
+    );
 }

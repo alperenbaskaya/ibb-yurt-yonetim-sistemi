@@ -15,6 +15,7 @@ import { formatDateTime } from '../../utils/formatDateTime'
 import { useAuth } from '../auth/useAuth'
 import { StudentPageState } from './StudentPageState'
 import { StudentStatusBadge } from './StudentStatusBadge'
+import { StudentProcessTimeline } from './StudentProcessTimeline'
 import {
   actionReasonPresentation,
   admissionStatusPresentation,
@@ -22,11 +23,12 @@ import {
   reviewDecisionPresentation,
   uploadPeriodPresentation,
 } from './studentPresentation'
-import { useStudentDashboard } from './studentQueries'
+import { useStudentDashboard, useStudentProcessTimeline } from './studentQueries'
 
 export function StudentDashboardPage() {
   const { user } = useAuth()
   const dashboardQuery = useStudentDashboard(user?.userId ?? 0)
+  const timelineQuery = useStudentProcessTimeline(user?.userId ?? 0)
 
   return (
     <section>
@@ -187,6 +189,14 @@ export function StudentDashboardPage() {
                   })}
                 </div>
               )}
+            </section>
+
+            <section aria-labelledby="process-history-title">
+              <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 id="process-history-title" className="text-lg font-semibold text-slate-950">Süreç Geçmişi</h2><p className="mt-1 text-sm text-slate-600">{timelineQuery.data?.dormitoryTermName ?? dashboard.dormitoryTermName} dönemindeki kabul ve belge adımlarınız.</p></div></div>
+              {timelineQuery.isLoading && <StudentPageState state="loading" title="Süreç geçmişi yükleniyor" message="Kabul ve belge işlem adımlarınız alınıyor..." />}
+              {timelineQuery.isError && <StudentPageState state="error" title="Süreç geçmişi alınamadı" message={getApiErrorMessage(timelineQuery.error, 'Süreç geçmişiniz alınamadı.')} onRetry={() => void timelineQuery.refetch()} />}
+              {timelineQuery.isSuccess && timelineQuery.data.items.length === 0 && <div className="mt-4 border border-slate-200 bg-white p-6 text-center text-sm text-slate-600">Aktif dönem için henüz kayıtlı bir süreç adımı bulunmuyor.</div>}
+              {timelineQuery.isSuccess && timelineQuery.data.items.length > 0 && <article className="mt-4 max-h-[32rem] overflow-y-auto border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><StudentProcessTimeline items={timelineQuery.data.items} compact /></article>}
             </section>
 
             <section aria-labelledby="last-review-title">

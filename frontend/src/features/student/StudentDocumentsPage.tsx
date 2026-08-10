@@ -1,4 +1,5 @@
-import { Download, FileText, LoaderCircle, LockKeyhole, MessageSquareText } from 'lucide-react'
+import { Download, FileClock, FileText, LoaderCircle, LockKeyhole, MessageSquareText } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { PageHeader } from '../../components/common/PageHeader'
 import type {
@@ -13,10 +14,11 @@ import { downloadBlob } from '../../utils/downloadBlob'
 import { formatDateTime } from '../../utils/formatDateTime'
 import { useAuth } from '../auth/useAuth'
 import { DocumentUploadControl } from './DocumentUploadControl'
+import { StudentDocumentHistoryDialog } from './StudentDocumentHistoryDialog'
 import { StudentPageState } from './StudentPageState'
 import { StudentStatusBadge } from './StudentStatusBadge'
 import { documentStatusPresentation, reviewDecisionPresentation } from './studentPresentation'
-import { useDownloadStudentDocument, useStudentDashboard, useStudentDocumentRequirements, useUploadStudentDocument } from './studentQueries'
+import { useDownloadStudentDocument, useStudentDashboard, useStudentDocumentRequirements, useStudentProcessTimeline, useUploadStudentDocument } from './studentQueries'
 
 function getUploadRestrictionMessage(
   admissionStatus: AdmissionStatus,
@@ -38,9 +40,10 @@ interface RequirementCardProps {
   downloadIsPending: boolean
   onUpload: (request: StudentDocumentUploadRequest) => Promise<void>
   onDownload: (studentDocumentId: number, fileName: string) => void
+  onHistory: () => void
 }
 
-function RequirementCard({ requirement, canUploadGlobally, latestReviewComment, latestReviewDecision, latestReviewDate, uploadIsPending, downloadIsPending, onUpload, onDownload }: RequirementCardProps) {
+function RequirementCard({ requirement, canUploadGlobally, latestReviewComment, latestReviewDecision, latestReviewDate, uploadIsPending, downloadIsPending, onUpload, onDownload, onHistory }: RequirementCardProps) {
   const status = requirement.status ? documentStatusPresentation[requirement.status] : null
   const allowsFirstUpload = !requirement.uploaded && requirement.studentDocumentId === null
   const allowsReupload = requirement.status === 'REVISION_REQUIRED'
@@ -66,11 +69,14 @@ function RequirementCard({ requirement, canUploadGlobally, latestReviewComment, 
             <p className="truncate text-sm font-medium text-slate-800">{requirement.originalFileName}</p>
             {requirement.uploadedAt && <p className="mt-1 text-xs text-slate-500">Yüklenme: {formatDateTime(requirement.uploadedAt)}</p>}
           </div>
-          {requirement.studentDocumentId !== null && requirement.originalFileName && (
-            <button type="button" onClick={() => onDownload(requirement.studentDocumentId!, requirement.originalFileName!)} disabled={downloadIsPending} className="inline-flex min-h-9 items-center justify-center gap-2 border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
-              {downloadIsPending ? <LoaderCircle className="animate-spin" aria-hidden="true" size={16} /> : <Download aria-hidden="true" size={16} />} İndir
-            </button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={onHistory} className="inline-flex min-h-9 items-center justify-center gap-2 border border-blue-300 px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"><FileClock aria-hidden="true" size={16} />Geçmişi Gör</button>
+            {requirement.studentDocumentId !== null && requirement.originalFileName && (
+              <button type="button" onClick={() => onDownload(requirement.studentDocumentId!, requirement.originalFileName!)} disabled={downloadIsPending} className="inline-flex min-h-9 items-center justify-center gap-2 border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                {downloadIsPending ? <LoaderCircle className="animate-spin" aria-hidden="true" size={16} /> : <Download aria-hidden="true" size={16} />} İndir
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -101,6 +107,8 @@ export function StudentDocumentsPage() {
   const requirementsQuery = useStudentDocumentRequirements(userId)
   const uploadMutation = useUploadStudentDocument(userId)
   const downloadMutation = useDownloadStudentDocument()
+  const timelineQuery = useStudentProcessTimeline(userId)
+  const [historyDocument, setHistoryDocument] = useState<{ id: number; name: string } | null>(null)
   const isLoading = dashboardQuery.isLoading || requirementsQuery.isLoading
   const error = dashboardQuery.error ?? requirementsQuery.error
 
@@ -141,12 +149,13 @@ export function StudentDocumentsPage() {
             <div className="grid gap-4 xl:grid-cols-2">
               {requirements.map((requirement) => {
                 const latestReview = dashboard.lastReview?.studentDocumentId === requirement.studentDocumentId ? dashboard.lastReview : null
-                return <RequirementCard key={requirement.requirementId} requirement={requirement} canUploadGlobally={canUploadGlobally} latestReviewComment={latestReview?.comment ?? null} latestReviewDecision={latestReview?.decision ?? null} latestReviewDate={latestReview?.reviewedAt ?? null} uploadIsPending={uploadMutation.isPending && uploadMutation.variables?.documentTypeId === requirement.documentTypeId} downloadIsPending={downloadMutation.isPending && downloadMutation.variables === requirement.studentDocumentId} onUpload={handleUpload} onDownload={handleDownload} />
+                return <RequirementCard key={requirement.requirementId} requirement={requirement} canUploadGlobally={canUploadGlobally} latestReviewComment={latestReview?.comment ?? null} latestReviewDecision={latestReview?.decision ?? null} latestReviewDate={latestReview?.reviewedAt ?? null} uploadIsPending={uploadMutation.isPending && uploadMutation.variables?.documentTypeId === requirement.documentTypeId} downloadIsPending={downloadMutation.isPending && downloadMutation.variables === requirement.studentDocumentId} onUpload={handleUpload} onDownload={handleDownload} onHistory={() => setHistoryDocument({ id: requirement.documentTypeId, name: requirement.documentTypeName })} />
               })}
             </div>
           </div>
         )
       })()}
+      {historyDocument && <StudentDocumentHistoryDialog documentTypeId={historyDocument.id} documentTypeName={historyDocument.name} isLoading={timelineQuery.isLoading} error={timelineQuery.error} items={timelineQuery.data?.items ?? []} onRetry={() => void timelineQuery.refetch()} onClose={() => setHistoryDocument(null)} />}
     </section>
   )
 }
