@@ -100,6 +100,12 @@ public class FileStorageService {
                 );
             }
         } catch (IOException exception) {
+            try {
+                Files.deleteIfExists(destination);
+            } catch (IOException cleanupException) {
+                exception.addSuppressed(cleanupException);
+            }
+
             throw new FileStorageException(
                     "Dosya kaydedilirken bir hata oluştu.",
                     exception

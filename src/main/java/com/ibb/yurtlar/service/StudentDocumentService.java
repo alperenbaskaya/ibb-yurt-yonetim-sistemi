@@ -62,6 +62,9 @@ public class StudentDocumentService {
 
     private final FileStorageService fileStorageService;
 
+    private final TransactionalFileLifecycleService
+            transactionalFileLifecycleService;
+
     private final StudentDocumentMapper studentDocumentMapper;
 
     private final AppUserRepository appUserRepository;
@@ -74,6 +77,7 @@ public class StudentDocumentService {
             AdmissionRepository admissionRepository,
             TermDocumentRequirementRepository termDocumentRequirementRepository,
             FileStorageService fileStorageService,
+            TransactionalFileLifecycleService transactionalFileLifecycleService,
             StudentDocumentMapper studentDocumentMapper,
             AppUserRepository appUserRepository,
             NotificationService notificationService,
@@ -90,6 +94,9 @@ public class StudentDocumentService {
 
         this.fileStorageService =
                 fileStorageService;
+
+        this.transactionalFileLifecycleService =
+                transactionalFileLifecycleService;
 
         this.studentDocumentMapper =
                 studentDocumentMapper;
@@ -158,6 +165,15 @@ public class StudentDocumentService {
                         admission.getId(),
                         documentType.getId()
                 );
+
+        String obsoleteFilePath = existingDocument
+                .map(StudentDocument::getFilePath)
+                .orElse(null);
+
+        transactionalFileLifecycleService.registerUpload(
+                storedFileInfo.relativePath(),
+                obsoleteFilePath
+        );
 
         if (existingDocument.isPresent()) {
             StudentDocumentResponse response = replaceExistingDocument(
@@ -324,9 +340,6 @@ public class StudentDocumentService {
         StudentDocumentStatus previousStatus =
                 document.getStatus();
 
-        String oldFilePath =
-                document.getFilePath();
-
         applyStoredFileInfo(
                 document,
                 storedFileInfo
@@ -352,10 +365,6 @@ public class StudentDocumentService {
                     document
             );
         }
-
-        fileStorageService.delete(
-                oldFilePath
-        );
 
         return studentDocumentMapper
                 .toResponse(
