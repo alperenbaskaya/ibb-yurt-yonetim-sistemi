@@ -7,6 +7,8 @@ import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.Dormitory;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.Role;
+import com.ibb.yurtlar.enums.AuditAction;
+import com.ibb.yurtlar.enums.AuditEntityType;
 import com.ibb.yurtlar.exception.DormitoryNotFoundException;
 import com.ibb.yurtlar.exception.EmailAlreadyExistsException;
 import com.ibb.yurtlar.exception.InactiveDormitoryException;
@@ -31,11 +33,13 @@ public class AppUserService {
     private final AppUserRepository appUserRepository;
     private final DormitoryRepository dormitoryRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditLogService auditLogService;
 
     public AppUserService(
             AppUserRepository appUserRepository,
             DormitoryRepository dormitoryRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            AuditLogService auditLogService
     ) {
         this.appUserRepository =
                 appUserRepository;
@@ -45,6 +49,7 @@ public class AppUserService {
 
         this.passwordEncoder =
                 passwordEncoder;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -117,6 +122,11 @@ public class AppUserService {
                 appUserRepository.save(
                         user
                 );
+
+        String savedName = savedUser.getFirstName() + " " + savedUser.getLastName();
+        auditLogService.recordSystemEvent(adminEmail, AuditAction.USER_CREATED,
+                AuditEntityType.USER, savedUser.getId(), savedName,
+                savedUser.getDormitory(), savedName + " kullanıcısı oluşturuldu.");
 
         return toResponse(
                 savedUser
@@ -197,6 +207,7 @@ public class AppUserService {
                 findUserById(
                         id
                 );
+        boolean previouslyActive = user.isActive();
 
         validateTargetUserAccess(
                 admin,
@@ -252,6 +263,20 @@ public class AppUserService {
                 request.adminScope(),
                 request.dormitoryId()
         );
+
+        String userName = user.getFirstName() + " " + user.getLastName();
+        auditLogService.recordSystemEvent(adminEmail, AuditAction.USER_UPDATED,
+                AuditEntityType.USER, user.getId(), userName, user.getDormitory(),
+                userName + " kullanıcısı güncellendi.");
+        if (previouslyActive != user.isActive()) {
+            AuditAction action = user.isActive()
+                    ? AuditAction.USER_ACTIVATED : AuditAction.USER_DEACTIVATED;
+            auditLogService.recordSystemEvent(adminEmail, action,
+                    AuditEntityType.USER, user.getId(), userName, user.getDormitory(),
+                    userName + (user.isActive()
+                            ? " kullanıcısı aktif hale getirildi."
+                            : " kullanıcısı pasif hale getirildi."));
+        }
 
         return toResponse(
                 user

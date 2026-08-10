@@ -8,6 +8,9 @@ import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.DormitoryTerm;
 import com.ibb.yurtlar.entity.Student;
 import com.ibb.yurtlar.enums.AdmissionStatus;
+import com.ibb.yurtlar.enums.AuditAction;
+import com.ibb.yurtlar.enums.AuditCategory;
+import com.ibb.yurtlar.enums.AuditEntityType;
 import com.ibb.yurtlar.exception.AdmissionAlreadyExistsException;
 import com.ibb.yurtlar.exception.AdmissionNotFoundException;
 import com.ibb.yurtlar.exception.DormitoryTermNotFoundException;
@@ -45,6 +48,7 @@ public class AdmissionService {
     private final DormitoryRepository dormitoryRepository;
     private final AppUserRepository appUserRepository;
     private final NotificationService notificationService;
+    private final AuditLogService auditLogService;
 
     public AdmissionService(
             AdmissionRepository admissionRepository,
@@ -52,7 +56,8 @@ public class AdmissionService {
             DormitoryTermRepository dormitoryTermRepository,
             DormitoryRepository dormitoryRepository,
             AppUserRepository appUserRepository,
-            NotificationService notificationService
+            NotificationService notificationService,
+            AuditLogService auditLogService
     ) {
         this.admissionRepository = admissionRepository;
         this.studentRepository = studentRepository;
@@ -60,6 +65,7 @@ public class AdmissionService {
         this.dormitoryRepository = dormitoryRepository;
         this.appUserRepository = appUserRepository;
         this.notificationService = notificationService;
+        this.auditLogService = auditLogService;
 
     }
 
@@ -271,6 +277,22 @@ public class AdmissionService {
 
         createAdmissionNotification(
                 admission
+        );
+
+        AppUser studentUser = admission.getStudent().getUser();
+        String studentName = studentUser.getFirstName() + " " + studentUser.getLastName();
+        auditLogService.recordStudentEvent(
+                adminEmail,
+                AuditCategory.STUDENT_ACTIVITY,
+                request.status() == AdmissionStatus.APPROVED
+                        ? AuditAction.ADMISSION_APPROVED : AuditAction.ADMISSION_REJECTED,
+                AuditEntityType.ADMISSION,
+                admission.getId(),
+                studentName,
+                admission.getStudent(),
+                admission.getDormitory(),
+                studentName + " öğrencisinin kabulü "
+                        + (request.status() == AdmissionStatus.APPROVED ? "onaylandı." : "reddedildi.")
         );
 
         return toResponse(

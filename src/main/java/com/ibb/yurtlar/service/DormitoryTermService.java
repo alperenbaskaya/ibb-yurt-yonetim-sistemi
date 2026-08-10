@@ -7,6 +7,8 @@ import com.ibb.yurtlar.entity.DormitoryTerm;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.Role;
+import com.ibb.yurtlar.enums.AuditAction;
+import com.ibb.yurtlar.enums.AuditEntityType;
 import com.ibb.yurtlar.exception.DormitoryTermAlreadyExistsException;
 import com.ibb.yurtlar.exception.DormitoryTermNotFoundException;
 import com.ibb.yurtlar.exception.InvalidDateRangeException;
@@ -30,6 +32,7 @@ public class DormitoryTermService {
     private final AdmissionRepository admissionRepository;
     private final TermDocumentRequirementRepository termDocumentRequirementRepository;
     private final AppUserRepository appUserRepository;
+    private final AuditLogService auditLogService;
 
 
     public DormitoryTermService(
@@ -37,13 +40,15 @@ public class DormitoryTermService {
             AdmissionRepository admissionRepository,
             TermDocumentRequirementRepository
                     termDocumentRequirementRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            AuditLogService auditLogService
     ) {
         this.dormitoryTermRepository = dormitoryTermRepository;
         this.admissionRepository = admissionRepository;
         this.termDocumentRequirementRepository =
                 termDocumentRequirementRepository;
         this.appUserRepository = appUserRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -65,7 +70,7 @@ public class DormitoryTermService {
         );
 
         if (request.active()) {
-            deactivateCurrentActiveTerms();
+            deactivateCurrentActiveTerms(adminEmail);
         }
 
         DormitoryTerm term = new DormitoryTerm();
@@ -82,6 +87,10 @@ public class DormitoryTermService {
 
         DormitoryTerm savedTerm =
                 dormitoryTermRepository.save(term);
+
+        auditLogService.recordSystemEvent(adminEmail, AuditAction.TERM_CREATED,
+                AuditEntityType.DORMITORY_TERM, savedTerm.getId(), savedTerm.getName(),
+                null, savedTerm.getName() + " yurt dönemi oluşturuldu.");
 
         return toResponse(savedTerm);
     }
@@ -110,6 +119,7 @@ public class DormitoryTermService {
         validateGlobalAdmin(adminEmail);
 
         DormitoryTerm term = findTermById(id);
+        boolean previouslyActive = term.isActive();
 
         if (dormitoryTermRepository
                 .existsByNameAndIdNot(request.name(), id)) {
@@ -127,7 +137,7 @@ public class DormitoryTermService {
         );
 
         if (request.active() && !term.isActive()) {
-            deactivateCurrentActiveTerms();
+            deactivateCurrentActiveTerms(adminEmail);
         }
 
         term.setName(request.name());
@@ -144,6 +154,11 @@ public class DormitoryTermService {
         DormitoryTerm updatedTerm =
                 dormitoryTermRepository.save(term);
 
+        auditLogService.recordSystemEvent(adminEmail, AuditAction.TERM_UPDATED,
+                AuditEntityType.DORMITORY_TERM, updatedTerm.getId(), updatedTerm.getName(),
+                null, updatedTerm.getName() + " yurt dönemi güncellendi.");
+        recordTermActiveTransition(adminEmail, updatedTerm, previouslyActive);
+
         return toResponse(updatedTerm);
     }
 
@@ -154,11 +169,16 @@ public class DormitoryTermService {
                 );
     }
 
-    private void deactivateCurrentActiveTerms() {
+    private void deactivateCurrentActiveTerms(String adminEmail) {
         List<DormitoryTerm> activeTerms =
                 dormitoryTermRepository.findAllByActiveTrue();
 
-        activeTerms.forEach(term -> term.setActive(false));
+        activeTerms.forEach(term -> {
+            term.setActive(false);
+            auditLogService.recordSystemEvent(adminEmail, AuditAction.TERM_DEACTIVATED,
+                    AuditEntityType.DORMITORY_TERM, term.getId(), term.getName(), null,
+                    term.getName() + " yurt dönemi pasif hale getirildi.");
+        });
     }
 
     private void validateDates(
@@ -226,6 +246,10 @@ public class DormitoryTermService {
         }
 
         dormitoryTermRepository.delete(term);
+
+        auditLogService.recordSystemEvent(adminEmail, AuditAction.TERM_DELETED,
+                AuditEntityType.DORMITORY_TERM, term.getId(), term.getName(), null,
+                term.getName() + " yurt dönemi silindi.");
     }
 
     @Transactional
@@ -237,14 +261,32 @@ public class DormitoryTermService {
         validateGlobalAdmin(adminEmail);
 
         DormitoryTerm term = findTermById(id);
+        boolean previouslyActive = term.isActive();
 
         if (active && !term.isActive()) {
-            deactivateCurrentActiveTerms();
+            deactivateCurrentActiveTerms(adminEmail);
         }
 
         term.setActive(active);
 
+        recordTermActiveTransition(adminEmail, term, previouslyActive);
+
         return toResponse(term);
+    }
+
+    private void recordTermActiveTransition(String adminEmail,
+                                            DormitoryTerm term,
+                                            boolean previouslyActive) {
+        if (previouslyActive == term.isActive()) {
+            return;
+        }
+        AuditAction action = term.isActive()
+                ? AuditAction.TERM_ACTIVATED : AuditAction.TERM_DEACTIVATED;
+        auditLogService.recordSystemEvent(adminEmail, action,
+                AuditEntityType.DORMITORY_TERM, term.getId(), term.getName(), null,
+                term.getName() + (term.isActive()
+                        ? " yurt dönemi aktif hale getirildi."
+                        : " yurt dönemi pasif hale getirildi."));
     }
 
     private void validateGlobalAdmin(String email) {

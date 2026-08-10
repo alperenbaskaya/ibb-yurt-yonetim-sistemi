@@ -21,6 +21,8 @@ import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DocumentTypeRepository;
 import com.ibb.yurtlar.repository.DormitoryTermRepository;
 import com.ibb.yurtlar.repository.TermDocumentRequirementRepository;
+import com.ibb.yurtlar.enums.AuditAction;
+import com.ibb.yurtlar.enums.AuditEntityType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,13 +38,15 @@ public class TermDocumentRequirementService {
 
     private final DocumentTypeRepository documentTypeRepository;
     private final AppUserRepository appUserRepository;
+    private final AuditLogService auditLogService;
 
     public TermDocumentRequirementService(
             TermDocumentRequirementRepository
                     termDocumentRequirementRepository,
             DormitoryTermRepository dormitoryTermRepository,
             DocumentTypeRepository documentTypeRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            AuditLogService auditLogService
     ) {
         this.termDocumentRequirementRepository =
                 termDocumentRequirementRepository;
@@ -53,6 +57,7 @@ public class TermDocumentRequirementService {
         this.documentTypeRepository =
                 documentTypeRepository;
         this.appUserRepository = appUserRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -110,6 +115,11 @@ public class TermDocumentRequirementService {
         TermDocumentRequirement savedRequirement =
                 termDocumentRequirementRepository.save(requirement);
 
+        auditLogService.recordSystemEvent(adminEmail, AuditAction.REQUIREMENT_CREATED,
+                AuditEntityType.TERM_DOCUMENT_REQUIREMENT, savedRequirement.getId(),
+                documentType.getName(), null, dormitoryTerm.getName() + " dönemi için "
+                        + documentType.getName() + " gereksinimi oluşturuldu.");
+
         return toResponse(savedRequirement);
     }
 
@@ -163,6 +173,11 @@ public class TermDocumentRequirementService {
                 findRequirementById(id);
 
         requirement.setRequired(request.required());
+
+        auditLogService.recordSystemEvent(adminEmail, AuditAction.REQUIREMENT_UPDATED,
+                AuditEntityType.TERM_DOCUMENT_REQUIREMENT, requirement.getId(),
+                requirement.getDocumentType().getName(), null,
+                requirement.getDormitoryTerm().getName() + " dönemi belge gereksinimi güncellendi.");
 
         return toResponse(requirement);
     }

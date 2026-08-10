@@ -9,6 +9,9 @@ import com.ibb.yurtlar.entity.StudentDocument;
 import com.ibb.yurtlar.entity.TermDocumentRequirement;
 import com.ibb.yurtlar.enums.AdmissionStatus;
 import com.ibb.yurtlar.enums.StudentDocumentStatus;
+import com.ibb.yurtlar.enums.AuditAction;
+import com.ibb.yurtlar.enums.AuditCategory;
+import com.ibb.yurtlar.enums.AuditEntityType;
 import com.ibb.yurtlar.exception.AdmissionNotApprovedException;
 import com.ibb.yurtlar.exception.AdmissionNotFoundException;
 import com.ibb.yurtlar.exception.DocumentNotRequiredForTermException;
@@ -64,6 +67,7 @@ public class StudentDocumentService {
     private final AppUserRepository appUserRepository;
 
     private final NotificationService notificationService;
+    private final AuditLogService auditLogService;
 
     public StudentDocumentService(
             StudentDocumentRepository studentDocumentRepository,
@@ -72,7 +76,8 @@ public class StudentDocumentService {
             FileStorageService fileStorageService,
             StudentDocumentMapper studentDocumentMapper,
             AppUserRepository appUserRepository,
-            NotificationService notificationService
+            NotificationService notificationService,
+            AuditLogService auditLogService
     ) {
         this.studentDocumentRepository =
                 studentDocumentRepository;
@@ -92,6 +97,7 @@ public class StudentDocumentService {
         this.appUserRepository = appUserRepository;
 
         this.notificationService = notificationService;
+        this.auditLogService = auditLogService;
 
     }
 
@@ -154,16 +160,39 @@ public class StudentDocumentService {
                 );
 
         if (existingDocument.isPresent()) {
-            return replaceExistingDocument(
+            StudentDocumentResponse response = replaceExistingDocument(
                     existingDocument.get(),
                     storedFileInfo
             );
+            recordUploadAudit(studentEmail, existingDocument.get(), AuditAction.DOCUMENT_REUPLOADED);
+            return response;
         }
 
-        return createNewDocument(
+        StudentDocumentResponse response = createNewDocument(
                 admission,
                 documentType,
                 storedFileInfo
+        );
+        StudentDocument savedDocument = studentDocumentRepository
+                .findByAdmission_IdAndDocumentType_Id(admission.getId(), documentType.getId())
+                .orElseThrow();
+        recordUploadAudit(studentEmail, savedDocument, AuditAction.DOCUMENT_UPLOADED);
+        return response;
+    }
+
+    private void recordUploadAudit(String studentEmail, StudentDocument document,
+                                   AuditAction action) {
+        Admission admission = document.getAdmission();
+        AppUser studentUser = admission.getStudent().getUser();
+        String studentName = studentUser.getFirstName() + " " + studentUser.getLastName();
+        auditLogService.recordStudentEvent(
+                studentEmail, AuditCategory.STUDENT_ACTIVITY, action,
+                AuditEntityType.STUDENT_DOCUMENT, document.getId(),
+                document.getDocumentType().getName(), admission.getStudent(),
+                admission.getDormitory(), studentName + ", "
+                        + document.getDocumentType().getName()
+                        + (action == AuditAction.DOCUMENT_UPLOADED
+                        ? " belgesini yükledi." : " belgesini yeniden yükledi.")
         );
     }
 

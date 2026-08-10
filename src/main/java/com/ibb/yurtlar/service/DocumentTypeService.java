@@ -11,6 +11,8 @@ import com.ibb.yurtlar.exception.DocumentTypeAlreadyExistsException;
 import com.ibb.yurtlar.exception.DocumentTypeNotFoundException;
 import com.ibb.yurtlar.repository.DocumentTypeRepository;
 import com.ibb.yurtlar.repository.AppUserRepository;
+import com.ibb.yurtlar.enums.AuditAction;
+import com.ibb.yurtlar.enums.AuditEntityType;
 import com.ibb.yurtlar.exception.InvalidCredentialsException;
 import com.ibb.yurtlar.exception.UserIsNotAdminException;
 import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
@@ -24,13 +26,16 @@ public class DocumentTypeService {
 
     private final DocumentTypeRepository documentTypeRepository;
     private final AppUserRepository appUserRepository;
+    private final AuditLogService auditLogService;
 
     public DocumentTypeService(
             DocumentTypeRepository documentTypeRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            AuditLogService auditLogService
     ) {
         this.documentTypeRepository = documentTypeRepository;
         this.appUserRepository = appUserRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -59,6 +64,11 @@ public class DocumentTypeService {
 
         DocumentType savedDocumentType =
                 documentTypeRepository.save(documentType);
+
+        auditLogService.recordSystemEvent(adminEmail, AuditAction.DOCUMENT_TYPE_CREATED,
+                AuditEntityType.DOCUMENT_TYPE, savedDocumentType.getId(),
+                savedDocumentType.getName(), null,
+                savedDocumentType.getName() + " belge türü oluşturuldu.");
 
         return toResponse(savedDocumentType);
     }
@@ -118,6 +128,10 @@ public class DocumentTypeService {
                 normalizeDescription(request.description())
         );
         documentType.setActive(request.active());
+
+        auditLogService.recordSystemEvent(adminEmail, AuditAction.DOCUMENT_TYPE_UPDATED,
+                AuditEntityType.DOCUMENT_TYPE, documentType.getId(), documentType.getName(),
+                null, documentType.getName() + " belge türü güncellendi.");
 
         return toResponse(documentType);
     }

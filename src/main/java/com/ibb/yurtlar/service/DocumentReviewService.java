@@ -10,6 +10,9 @@ import com.ibb.yurtlar.entity.StudentDocument;
 import com.ibb.yurtlar.enums.DocumentReviewDecision;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.enums.StudentDocumentStatus;
+import com.ibb.yurtlar.enums.AuditAction;
+import com.ibb.yurtlar.enums.AuditCategory;
+import com.ibb.yurtlar.enums.AuditEntityType;
 import com.ibb.yurtlar.exception.DocumentNotReadyForReviewException;
 import com.ibb.yurtlar.exception.ReviewCommentRequiredException;
 import com.ibb.yurtlar.exception.StudentDocumentNotFoundException;
@@ -49,13 +52,15 @@ public class DocumentReviewService {
 
     private final StudentDocumentService
             studentDocumentService;
+    private final AuditLogService auditLogService;
 
     public DocumentReviewService(
             DocumentReviewRepository documentReviewRepository,
             StudentDocumentRepository studentDocumentRepository,
             AppUserRepository appUserRepository,
             NotificationService notificationService,
-            StudentDocumentService studentDocumentService
+            StudentDocumentService studentDocumentService,
+            AuditLogService auditLogService
     ) {
         this.documentReviewRepository =
                 documentReviewRepository;
@@ -71,6 +76,7 @@ public class DocumentReviewService {
 
         this.studentDocumentService =
                 studentDocumentService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -145,11 +151,14 @@ public class DocumentReviewService {
                 normalizedComment
         );
 
+        recordReviewAudit(reviewerEmail, reviewer, document, request.decision());
+
         if (request.decision()
                 == DocumentReviewDecision.APPROVED) {
 
             checkDocumentProcessCompletion(
-                    document
+                    document,
+                    reviewerEmail
             );
         }
 
@@ -485,7 +494,8 @@ public class DocumentReviewService {
     }
 
     private void checkDocumentProcessCompletion(
-            StudentDocument document
+            StudentDocument document,
+            String reviewerEmail
     ) {
         Admission admission =
                 document.getAdmission();
@@ -506,6 +516,40 @@ public class DocumentReviewService {
 
         createDormitoryAdminCompletionNotifications(
                 admission
+        );
+
+        AppUser studentUser = admission.getStudent().getUser();
+        String studentName = studentUser.getFirstName() + " " + studentUser.getLastName();
+        auditLogService.recordDocumentProcessCompletedIfAbsent(
+                reviewerEmail,
+                admission,
+                studentName + " öğrencisinin zorunlu belge süreci tamamlandı."
+        );
+    }
+
+    private void recordReviewAudit(String reviewerEmail, AppUser reviewer,
+                                   StudentDocument document,
+                                   DocumentReviewDecision decision) {
+        AuditAction action = switch (decision) {
+            case APPROVED -> AuditAction.DOCUMENT_APPROVED;
+            case REJECTED -> AuditAction.DOCUMENT_REJECTED;
+            case REVISION_REQUIRED -> AuditAction.DOCUMENT_REVISION_REQUIRED;
+        };
+        String verb = switch (decision) {
+            case APPROVED -> " onayladı.";
+            case REJECTED -> " reddetti.";
+            case REVISION_REQUIRED -> " için düzeltme istedi.";
+        };
+        Admission admission = document.getAdmission();
+        AppUser studentUser = admission.getStudent().getUser();
+        String reviewerName = reviewer.getFirstName() + " " + reviewer.getLastName();
+        String studentName = studentUser.getFirstName() + " " + studentUser.getLastName();
+        auditLogService.recordStudentEvent(
+                reviewerEmail, AuditCategory.REVIEWER_ACTIVITY, action,
+                AuditEntityType.STUDENT_DOCUMENT, document.getId(),
+                document.getDocumentType().getName(), admission.getStudent(),
+                admission.getDormitory(), reviewerName + ", " + studentName
+                        + " öğrencisinin " + document.getDocumentType().getName() + verb
         );
     }
 

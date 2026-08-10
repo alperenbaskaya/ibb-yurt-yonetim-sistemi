@@ -14,6 +14,8 @@ import com.ibb.yurtlar.exception.UserIsNotAdminException;
 import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DormitoryRepository;
+import com.ibb.yurtlar.enums.AuditAction;
+import com.ibb.yurtlar.enums.AuditEntityType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,13 +26,16 @@ public class DormitoryService {
 
     private final DormitoryRepository dormitoryRepository;
     private final AppUserRepository appUserRepository;
+    private final AuditLogService auditLogService;
 
     public DormitoryService(
             DormitoryRepository dormitoryRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            AuditLogService auditLogService
     ) {
         this.dormitoryRepository = dormitoryRepository;
         this.appUserRepository = appUserRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -62,6 +67,10 @@ public class DormitoryService {
 
         Dormitory savedDormitory =
                 dormitoryRepository.save(dormitory);
+
+        auditLogService.recordSystemEvent(adminEmail, AuditAction.DORMITORY_CREATED,
+                AuditEntityType.DORMITORY, savedDormitory.getId(), savedDormitory.getName(),
+                savedDormitory, savedDormitory.getName() + " yurdu oluşturuldu.");
 
         return toResponse(savedDormitory);
     }
@@ -124,6 +133,10 @@ public class DormitoryService {
         );
         dormitory.setCapacity(request.capacity());
         dormitory.setActive(request.active());
+
+        auditLogService.recordSystemEvent(adminEmail, AuditAction.DORMITORY_UPDATED,
+                AuditEntityType.DORMITORY, dormitory.getId(), dormitory.getName(),
+                dormitory, dormitory.getName() + " yurdu güncellendi.");
 
         return toResponse(dormitory);
     }
