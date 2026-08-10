@@ -63,6 +63,19 @@ public interface DocumentReviewRepository
     );
 
     @Query("""
+            SELECT review
+            FROM DocumentReview review
+            JOIN FETCH review.reviewer reviewer
+            JOIN FETCH review.studentDocument document
+            JOIN FETCH document.documentType documentType
+            WHERE document.admission.id = :admissionId
+            ORDER BY review.reviewedAt DESC
+            """)
+    List<DocumentReview> findAllForAdminInspectionByAdmissionId(
+            @Param("admissionId") Long admissionId
+    );
+
+    @Query("""
         SELECT new com.ibb.yurtlar.dto.DormitoryReviewerWorkloadResponse(
             reviewer.id,
             reviewer.firstName,

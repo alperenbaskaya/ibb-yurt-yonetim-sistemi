@@ -2,6 +2,8 @@ package com.ibb.yurtlar.controller;
 
 import com.ibb.yurtlar.dto.CreateStudentRequest;
 import com.ibb.yurtlar.dto.StudentResponse;
+import com.ibb.yurtlar.dto.AdminStudentDocumentInspectionResponse;
+import com.ibb.yurtlar.service.AdminStudentDocumentInspectionService;
 import com.ibb.yurtlar.service.StudentService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -18,12 +20,15 @@ public class StudentController {
 
     private final StudentService
             studentService;
+    private final AdminStudentDocumentInspectionService inspectionService;
 
     public StudentController(
-            StudentService studentService
+            StudentService studentService,
+            AdminStudentDocumentInspectionService inspectionService
     ) {
         this.studentService =
                 studentService;
+        this.inspectionService = inspectionService;
     }
 
     @PostMapping
@@ -55,6 +60,17 @@ public class StudentController {
             Authentication authentication
     ) {
         return studentService.getById(
+                id,
+                authentication.getName()
+        );
+    }
+
+    @GetMapping("/{id}/document-inspection")
+    public AdminStudentDocumentInspectionResponse getDocumentInspection(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        return inspectionService.getInspection(
                 id,
                 authentication.getName()
         );
