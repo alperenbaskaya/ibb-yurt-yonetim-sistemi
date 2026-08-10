@@ -12,6 +12,7 @@ import com.ibb.yurtlar.exception.UserIsNotStudentException;
 import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.StudentRepository;
+import com.ibb.yurtlar.repository.DormitoryTermRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.ibb.yurtlar.entity.Dormitory;
@@ -20,6 +21,7 @@ import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
 import com.ibb.yurtlar.exception.InvalidCredentialsException;
 import com.ibb.yurtlar.exception.StudentManagementAccessDeniedException;
 import com.ibb.yurtlar.exception.UserIsNotAdminException;
+import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
 
 import java.util.List;
 
@@ -28,13 +30,16 @@ public class StudentService {
 
     private final StudentRepository studentRepository;
     private final AppUserRepository appUserRepository;
+    private final DormitoryTermRepository dormitoryTermRepository;
 
     public StudentService(
             StudentRepository studentRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            DormitoryTermRepository dormitoryTermRepository
     ) {
         this.studentRepository = studentRepository;
         this.appUserRepository = appUserRepository;
+        this.dormitoryTermRepository = dormitoryTermRepository;
     }
 
     @Transactional
@@ -160,6 +165,34 @@ public class StudentService {
         return studentRepository
                 .findActiveTermStudentsByDormitory(
                         adminDormitory.getId()
+                )
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<StudentResponse> getGlobalStudentsByDormitory(
+            Long dormitoryId,
+            String adminEmail
+    ) {
+        AppUser admin = findAuthenticatedAdmin(adminEmail);
+
+        if (admin.getAdminScope() != AdminScope.GLOBAL) {
+            throw new StudentManagementAccessDeniedException(
+                    "Yalnızca GLOBAL admin yurt bazlı öğrenci listesini görüntüleyebilir."
+            );
+        }
+
+        Long activeTermId = dormitoryTermRepository
+                .findByActiveTrue()
+                .orElseThrow(ActiveDormitoryTermNotFoundException::new)
+                .getId();
+
+        return studentRepository
+                .findApprovedStudentsByDormitoryAndTerm(
+                        dormitoryId,
+                        activeTermId
                 )
                 .stream()
                 .map(this::toResponse)

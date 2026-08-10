@@ -16,7 +16,7 @@ export const updateDormitory = async (id: number, request: UpdateDormitoryReques
 export const getGlobalUsers = async () => (await httpClient.get<UserResponse[]>('/users')).data
 export const createGlobalUser = async (request: CreateUserRequest) => (await httpClient.post<UserResponse>('/users', request)).data
 export const updateGlobalUser = async (id: number, request: UpdateUserRequest) => (await httpClient.put<UserResponse>(`/users/${id}`, request)).data
-export const getGlobalStudents = async () => (await httpClient.get<StudentResponse[]>('/students')).data
+export const getGlobalStudentsByDormitory = async (dormitoryId: number) => (await httpClient.get<StudentResponse[]>('/students/global', { params: { dormitoryId } })).data
 export const getGlobalAdmissions = async (status?: AdmissionStatus) => (await httpClient.get<AdmissionResponse[]>('/admissions/current-term', { params: status ? { status } : undefined })).data
 export const updateGlobalAdmissionStatus = async (id: number, request: UpdateAdmissionStatusRequest) => (await httpClient.patch<AdmissionResponse>(`/admissions/${id}/status`, request)).data
 export const getDormitoryTerms = async () => (await httpClient.get<DormitoryTermResponse[]>('/dormitory-terms')).data

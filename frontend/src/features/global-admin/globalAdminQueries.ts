@@ -9,7 +9,7 @@ export const globalAdminKeys = {
   dashboard: (u:number) => [...globalAdminKeys.root(u),'dashboard'] as const,
   dormitories: (u:number) => [...globalAdminKeys.root(u),'dormitories'] as const,
   users: (u:number) => [...globalAdminKeys.root(u),'users'] as const,
-  students: (u:number) => [...globalAdminKeys.root(u),'students'] as const,
+  students: (u:number,dormitoryId:number) => [...globalAdminKeys.root(u),'students',dormitoryId] as const,
   admissions: (u:number) => [...globalAdminKeys.root(u),'admissions'] as const,
   terms: (u:number) => [...globalAdminKeys.root(u),'terms'] as const,
   documentTypes: (u:number) => [...globalAdminKeys.root(u),'document-types'] as const,
@@ -18,7 +18,7 @@ export const globalAdminKeys = {
 export const useGlobalDashboard=(u:number)=>useQuery({queryKey:globalAdminKeys.dashboard(u),queryFn:api.getGlobalDashboard})
 export const useDormitories=(u:number)=>useQuery({queryKey:globalAdminKeys.dormitories(u),queryFn:api.getDormitories})
 export const useGlobalUsers=(u:number)=>useQuery({queryKey:globalAdminKeys.users(u),queryFn:api.getGlobalUsers})
-export const useGlobalStudents=(u:number)=>useQuery({queryKey:globalAdminKeys.students(u),queryFn:api.getGlobalStudents})
+export const useGlobalStudents=(u:number,dormitoryId:number|null)=>useQuery({queryKey:globalAdminKeys.students(u,dormitoryId??0),queryFn:()=>api.getGlobalStudentsByDormitory(dormitoryId!),enabled:dormitoryId!==null})
 export const useGlobalAdmissions=(u:number)=>useQuery({queryKey:globalAdminKeys.admissions(u),queryFn:()=>api.getGlobalAdmissions()})
 export const useDormitoryTerms=(u:number)=>useQuery({queryKey:globalAdminKeys.terms(u),queryFn:api.getDormitoryTerms})
 export const useDocumentTypes=(u:number)=>useQuery({queryKey:globalAdminKeys.documentTypes(u),queryFn:api.getDocumentTypes})

@@ -99,4 +99,21 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
             @Param("termId")
             Long termId
     );
+
+    @Query("""
+            SELECT student
+            FROM Admission admission
+            JOIN admission.student student
+            JOIN FETCH student.user studentUser
+            WHERE admission.dormitory.id = :dormitoryId
+              AND admission.dormitoryTerm.id = :termId
+              AND admission.status =
+                  com.ibb.yurtlar.enums.AdmissionStatus.APPROVED
+            ORDER BY studentUser.firstName ASC,
+                     studentUser.lastName ASC
+            """)
+    List<Student> findApprovedStudentsByDormitoryAndTerm(
+            @Param("dormitoryId") Long dormitoryId,
+            @Param("termId") Long termId
+    );
 }

@@ -65,6 +65,17 @@ public class StudentController {
         );
     }
 
+    @GetMapping("/global")
+    public List<StudentResponse> getGlobalStudentsByDormitory(
+            @RequestParam Long dormitoryId,
+            Authentication authentication
+    ) {
+        return studentService.getGlobalStudentsByDormitory(
+                dormitoryId,
+                authentication.getName()
+        );
+    }
+
     @GetMapping("/{id}/document-inspection")
     public AdminStudentDocumentInspectionResponse getDocumentInspection(
             @PathVariable Long id,
