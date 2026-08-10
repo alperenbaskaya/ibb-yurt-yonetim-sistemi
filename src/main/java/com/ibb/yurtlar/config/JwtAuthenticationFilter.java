@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -113,6 +114,18 @@ public class JwtAuthenticationFilter
                     );
                 }
 
+                boolean accountUsable =
+                        userDetails.isEnabled()
+                                && userDetails.isAccountNonLocked()
+                                && userDetails.isAccountNonExpired()
+                                && userDetails.isCredentialsNonExpired();
+
+                if (!accountUsable) {
+                    throw new BadCredentialsException(
+                            "Kullanıcı hesabı aktif değil."
+                    );
+                }
+
                 UsernamePasswordAuthenticationToken
                         authentication =
                         new UsernamePasswordAuthenticationToken(
@@ -138,7 +151,7 @@ public class JwtAuthenticationFilter
         } catch (
                 JwtException
                 | IllegalArgumentException
-                | BadCredentialsException exception
+                | AuthenticationException exception
         ) {
             SecurityContextHolder.clearContext();
 

@@ -114,6 +114,10 @@ public class AuthService {
                                 InvalidCredentialsException::new
                         );
 
+        if (!user.isActive()) {
+            throw new InvalidCredentialsException();
+        }
+
         Dormitory dormitory =
                 user.getDormitory();
 
