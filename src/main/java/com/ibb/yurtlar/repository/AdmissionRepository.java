@@ -165,6 +165,25 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
     );
 
     @Query("""
+        SELECT admission
+        FROM Admission admission
+        JOIN FETCH admission.student student
+        JOIN FETCH student.user studentUser
+        JOIN FETCH admission.dormitoryTerm term
+        JOIN FETCH admission.dormitory dormitory
+        WHERE student.id = :studentId
+          AND dormitory.id = :dormitoryId
+          AND term.id = :termId
+          AND admission.status =
+              com.ibb.yurtlar.enums.AdmissionStatus.APPROVED
+        """)
+    Optional<Admission> findApprovedReviewerStudentAdmission(
+            @Param("studentId") Long studentId,
+            @Param("dormitoryId") Long dormitoryId,
+            @Param("termId") Long termId
+    );
+
+    @Query("""
         SELECT new com.ibb.yurtlar.dto.AdmissionStatusCountResponse(
 
             COUNT(admission),

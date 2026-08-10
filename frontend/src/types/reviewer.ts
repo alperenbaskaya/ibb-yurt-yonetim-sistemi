@@ -1,5 +1,6 @@
 import type {
   DocumentReviewDecision,
+  StudentDocumentStatus,
   StudentDocumentResponse,
 } from './student'
 
@@ -68,6 +69,30 @@ export interface ReviewerStudentResponse {
   faculty: string
   department: string
   phone: string
+}
+
+export interface ReviewerStudentDocumentProcessItemResponse {
+  documentTypeId: number
+  documentTypeName: string
+  uploaded: boolean
+  status: StudentDocumentStatus | null
+}
+
+export interface ReviewerStudentDocumentProcessResponse {
+  studentId: number
+  firstName: string
+  lastName: string
+  identityNumber: string
+  dormitoryTermId: number
+  dormitoryTermName: string
+  totalRequiredDocumentCount: number
+  approvedRequiredDocumentCount: number
+  missingRequiredDocumentCount: number
+  uploadedRequiredDocumentCount: number
+  revisionRequiredDocumentCount: number
+  rejectedDocumentCount: number
+  completed: boolean
+  requiredDocuments: ReviewerStudentDocumentProcessItemResponse[]
 }
 
 export interface CreateDocumentReviewRequest {

@@ -4,12 +4,15 @@ import { PageHeader } from '../../components/common/PageHeader'
 import { getApiErrorMessage } from '../../utils/apiError'
 import { useAuth } from '../auth/useAuth'
 import { ReviewerPageState } from './ReviewerPageState'
+import { ReviewerStudentProcessDialog } from './ReviewerStudentProcessDialog'
 import { useReviewerStudents } from './reviewerQueries'
+import type { ReviewerStudentResponse } from '../../types/reviewer'
 
 export function ReviewerStudentsPage() {
   const { user } = useAuth()
   const studentsQuery = useReviewerStudents(user?.userId ?? 0)
   const [search, setSearch] = useState('')
+  const [selectedStudent, setSelectedStudent] = useState<ReviewerStudentResponse | null>(null)
   const normalizedSearch = search.trim().toLocaleLowerCase('tr-TR')
   const students = studentsQuery.data ?? []
   const visibleStudents = students.filter((student) => {
@@ -83,7 +86,7 @@ export function ReviewerStudentsPage() {
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
               {visibleStudents.map((student) => (
-                <article key={student.studentId} className="border border-slate-200 bg-white p-5 shadow-sm">
+                <button type="button" key={student.studentId} onClick={() => setSelectedStudent(student)} aria-label={`${student.firstName} ${student.lastName} belge sürecini görüntüle`} className="w-full border border-slate-200 bg-white p-5 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
                   <div className="flex items-start gap-3">
                     <span className="flex size-10 shrink-0 items-center justify-center bg-blue-50 text-blue-700">
                       <GraduationCap aria-hidden="true" size={20} />
@@ -101,12 +104,14 @@ export function ReviewerStudentsPage() {
                     <div><dt className="font-medium text-slate-500">Fakülte</dt><dd className="mt-1 text-slate-900">{student.faculty}</dd></div>
                     <div><dt className="font-medium text-slate-500">Bölüm</dt><dd className="mt-1 text-slate-900">{student.department}</dd></div>
                   </dl>
-                </article>
+                  <p className="mt-4 text-sm font-semibold text-blue-700">Belge sürecini görüntüle</p>
+                </button>
               ))}
             </div>
           )}
         </div>
       )}
+      {selectedStudent && <ReviewerStudentProcessDialog userId={user?.userId ?? 0} student={selectedStudent} onClose={() => setSelectedStudent(null)} />}
     </section>
   )
 }
