@@ -4,6 +4,7 @@ import { DormitoryAdmissionsPage } from './DormitoryAdmissionsPage'
 import { DormitoryDocumentsPage } from './DormitoryDocumentsPage'
 import { DormitoryReviewersPage } from './DormitoryReviewersPage'
 import { DormitoryStudentsPage } from './DormitoryStudentsPage'
+import { DormitoryHistoryPage } from './DormitoryHistoryPage'
 
 export default function DormitoryAdminRoutes() {
   return (
@@ -13,6 +14,7 @@ export default function DormitoryAdminRoutes() {
       <Route path="students" element={<DormitoryStudentsPage />} />
       <Route path="reviewers" element={<DormitoryReviewersPage />} />
       <Route path="documents" element={<DormitoryDocumentsPage />} />
+      <Route path="history" element={<DormitoryHistoryPage />} />
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   )

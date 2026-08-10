@@ -94,6 +94,7 @@ export const navigationByCategory: Record<
       icon: UserCheck,
     },
     { label: 'Belgeler', path: '/admin/documents', icon: Files },
+    { label: 'İşlem Geçmişi', path: '/admin/history', icon: History },
     sharedItems.notifications,
     sharedItems.profile,
   ],
