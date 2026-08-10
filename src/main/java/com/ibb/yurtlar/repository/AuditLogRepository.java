@@ -7,6 +7,11 @@ import com.ibb.yurtlar.enums.AuditEntityType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.Collection;
+import java.util.List;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     boolean existsByActionAndEntityTypeAndEntityId(
@@ -23,6 +28,21 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     Page<AuditLog> findByCategoryOrderByCreatedAtDescIdDesc(
             AuditCategory category,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT audit
+        FROM AuditLog audit
+        WHERE audit.dormitoryId = :dormitoryId
+          AND audit.category = :category
+          AND audit.action IN :actions
+        ORDER BY audit.createdAt DESC, audit.id DESC
+        """)
+    List<AuditLog> findRecentByDormitoryCategoryAndActions(
+            @Param("dormitoryId") Long dormitoryId,
+            @Param("category") AuditCategory category,
+            @Param("actions") Collection<AuditAction> actions,
             Pageable pageable
     );
 }
