@@ -3,6 +3,46 @@ import type { AdmissionResponse, StudentResponse, UserResponse } from './dormito
 
 export type DormitoryAdmissionProcessStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'
 
+export type AuditCategory = 'STUDENT_ACTIVITY' | 'REVIEWER_ACTIVITY' | 'SYSTEM_MANAGEMENT'
+export type AuditAction =
+  | 'ADMISSION_APPROVED' | 'ADMISSION_REJECTED'
+  | 'DOCUMENT_UPLOADED' | 'DOCUMENT_REUPLOADED' | 'DOCUMENT_PROCESS_COMPLETED'
+  | 'DOCUMENT_APPROVED' | 'DOCUMENT_REJECTED' | 'DOCUMENT_REVISION_REQUIRED'
+  | 'DORMITORY_CREATED' | 'DORMITORY_UPDATED'
+  | 'USER_CREATED' | 'USER_UPDATED' | 'USER_ACTIVATED' | 'USER_DEACTIVATED'
+  | 'TERM_CREATED' | 'TERM_UPDATED' | 'TERM_ACTIVATED' | 'TERM_DEACTIVATED' | 'TERM_DELETED'
+  | 'DOCUMENT_TYPE_CREATED' | 'DOCUMENT_TYPE_UPDATED'
+  | 'REQUIREMENT_CREATED' | 'REQUIREMENT_UPDATED'
+export type AuditEntityType = 'ADMISSION' | 'STUDENT_DOCUMENT' | 'USER' | 'DORMITORY' | 'DORMITORY_TERM' | 'DOCUMENT_TYPE' | 'TERM_DOCUMENT_REQUIREMENT'
+
+export interface AuditLogResponse {
+  id: number
+  actorUserId: number
+  actorName: string
+  actorRole: Role
+  subjectStudentId: number | null
+  subjectStudentName: string | null
+  dormitoryId: number | null
+  dormitoryName: string | null
+  category: AuditCategory
+  action: AuditAction
+  entityType: AuditEntityType
+  entityId: number
+  targetLabel: string
+  description: string
+  createdAt: string
+}
+
+export interface AuditLogPageResponse {
+  items: AuditLogResponse[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
 export interface GlobalDormitoryManagerResponse {
   userId: number
   firstName: string

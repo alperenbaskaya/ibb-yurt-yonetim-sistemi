@@ -17,6 +17,19 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(InvalidAuditHistoryRequestException.class)
+    public ResponseEntity<ApiError> handleInvalidAuditHistoryRequest(
+            InvalidAuditHistoryRequestException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.badRequest().body(createApiError(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                request.getRequestURI(),
+                null
+        ));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(
             AccessDeniedException exception,
