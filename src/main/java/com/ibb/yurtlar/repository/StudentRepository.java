@@ -39,24 +39,6 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
                  ON admission.student = s
             JOIN admission.dormitory dormitory
             JOIN admission.dormitoryTerm term
-            WHERE dormitory.id = :dormitoryId
-              AND term.active = true
-            ORDER BY studentUser.firstName ASC,
-                     studentUser.lastName ASC
-            """)
-    List<Student> findActiveTermStudentsByDormitory(
-            @Param("dormitoryId")
-            Long dormitoryId
-    );
-
-    @Query("""
-            SELECT DISTINCT s
-            FROM Student s
-            JOIN FETCH s.user studentUser
-            JOIN Admission admission
-                 ON admission.student = s
-            JOIN admission.dormitory dormitory
-            JOIN admission.dormitoryTerm term
             WHERE s.id = :studentId
               AND dormitory.id = :dormitoryId
               AND term.active = true

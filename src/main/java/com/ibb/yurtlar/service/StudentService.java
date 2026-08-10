@@ -162,9 +162,15 @@ public class StudentService {
                         admin
                 );
 
+        Long activeTermId = dormitoryTermRepository
+                .findByActiveTrue()
+                .orElseThrow(ActiveDormitoryTermNotFoundException::new)
+                .getId();
+
         return studentRepository
-                .findActiveTermStudentsByDormitory(
-                        adminDormitory.getId()
+                .findApprovedStudentsByDormitoryAndTerm(
+                        adminDormitory.getId(),
+                        activeTermId
                 )
                 .stream()
                 .map(this::toResponse)
