@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import com.ibb.yurtlar.exception.ActiveAdmissionNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -16,6 +18,33 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.badRequest().body(createApiError(
+                HttpStatus.BAD_REQUEST,
+                "Geçersiz istek parametresi: " + exception.getName(),
+                request.getRequestURI(),
+                null
+        ));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingServletRequestParameter(
+            MissingServletRequestParameterException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.badRequest().body(createApiError(
+                HttpStatus.BAD_REQUEST,
+                "Zorunlu istek parametresi eksik: "
+                        + exception.getParameterName(),
+                request.getRequestURI(),
+                null
+        ));
+    }
 
     @ExceptionHandler(InvalidAuditHistoryRequestException.class)
     public ResponseEntity<ApiError> handleInvalidAuditHistoryRequest(
