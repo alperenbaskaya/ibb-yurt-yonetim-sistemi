@@ -6,6 +6,7 @@ import {
   getDocumentReviewHistory,
   getMyDocumentReviews,
   getMyReviewerDashboard,
+  getMyReviewerStudents,
   getPendingReviewerDocuments,
   getReviewerDocument,
 } from '../../api/reviewerApi'
@@ -19,6 +20,8 @@ export const reviewerQueryKeys = {
     [...reviewerQueryKeys.root(userId), 'pending-documents'] as const,
   myReviews: (userId: number) =>
     [...reviewerQueryKeys.root(userId), 'my-reviews'] as const,
+  students: (userId: number) =>
+    [...reviewerQueryKeys.root(userId), 'students'] as const,
   document: (userId: number, documentId: number) =>
     [...reviewerQueryKeys.root(userId), 'document', documentId] as const,
   documentReviews: (userId: number, documentId: number) =>
@@ -29,6 +32,13 @@ export function useReviewerDashboard(userId: number) {
   return useQuery({
     queryKey: reviewerQueryKeys.dashboard(userId),
     queryFn: getMyReviewerDashboard,
+  })
+}
+
+export function useReviewerStudents(userId: number) {
+  return useQuery({
+    queryKey: reviewerQueryKeys.students(userId),
+    queryFn: getMyReviewerStudents,
   })
 }
 

@@ -1,5 +1,6 @@
 package com.ibb.yurtlar.repository;
 
+import com.ibb.yurtlar.dto.ReviewerStudentResponse;
 import com.ibb.yurtlar.entity.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -67,5 +68,35 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
             @Param("dormitoryId")
             Long dormitoryId
+    );
+
+    @Query("""
+            SELECT new com.ibb.yurtlar.dto.ReviewerStudentResponse(
+                student.id,
+                studentUser.firstName,
+                studentUser.lastName,
+                studentUser.email,
+                student.identityNumber,
+                student.faculty,
+                student.department,
+                student.phone
+            )
+            FROM Admission admission
+            JOIN admission.student student
+            JOIN student.user studentUser
+            WHERE admission.dormitory.id = :dormitoryId
+              AND admission.dormitoryTerm.id = :termId
+              AND admission.status =
+                  com.ibb.yurtlar.enums.AdmissionStatus.APPROVED
+            ORDER BY studentUser.firstName ASC,
+                     studentUser.lastName ASC
+            """)
+    List<ReviewerStudentResponse>
+    findReviewerStudentsByDormitoryAndTerm(
+            @Param("dormitoryId")
+            Long dormitoryId,
+
+            @Param("termId")
+            Long termId
     );
 }

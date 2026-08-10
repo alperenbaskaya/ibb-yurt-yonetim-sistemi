@@ -4,12 +4,20 @@ import type {
   DocumentReviewResponse,
   DownloadedReviewerDocument,
   ReviewerDashboardResponse,
+  ReviewerStudentResponse,
 } from '../types/reviewer'
 import { httpClient } from './httpClient'
 
 export async function getMyReviewerDashboard(): Promise<ReviewerDashboardResponse> {
   const response = await httpClient.get<ReviewerDashboardResponse>(
     '/reviewer-dashboard/me',
+  )
+  return response.data
+}
+
+export async function getMyReviewerStudents(): Promise<ReviewerStudentResponse[]> {
+  const response = await httpClient.get<ReviewerStudentResponse[]>(
+    '/reviewer-students/me',
   )
   return response.data
 }

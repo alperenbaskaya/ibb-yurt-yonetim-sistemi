@@ -42,6 +42,8 @@ export interface ReviewerDashboardResponse {
   email: string
   dormitoryId: number
   dormitoryName: string
+  activeTermId: number
+  activeTermName: string
   activeStudentCount: number
   completedStudentCount: number
   incompleteStudentCount: number
@@ -55,6 +57,17 @@ export interface ReviewerDashboardResponse {
   oldestPendingDocuments: StudentDocumentResponse[]
   actionRequiredStudents: ActionRequiredStudentResponse[]
   recentDormitoryReviews: DocumentReviewResponse[]
+}
+
+export interface ReviewerStudentResponse {
+  studentId: number
+  firstName: string
+  lastName: string
+  email: string
+  identityNumber: string
+  faculty: string
+  department: string
+  phone: string
 }
 
 export interface CreateDocumentReviewRequest {

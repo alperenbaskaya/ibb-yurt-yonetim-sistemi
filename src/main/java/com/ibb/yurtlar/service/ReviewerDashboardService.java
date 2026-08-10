@@ -170,6 +170,9 @@ public class ReviewerDashboardService {
                 dormitory.getId(),
                 dormitory.getName(),
 
+                activeTerm.getId(),
+                activeTerm.getName(),
+
                 progress.activeStudentCount(),
                 progress.completedStudentCount(),
                 progress.incompleteStudentCount(),

@@ -41,7 +41,7 @@ export function ReviewerDashboardPage() {
         return (
           <div className="mt-6 space-y-7">
             <article className="flex flex-col gap-4 border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
-              <div><p className="text-sm font-medium text-blue-800">Görev yaptığınız yurt</p><h2 className="mt-1 text-xl font-semibold text-slate-950">{dashboard.dormitoryName}</h2><p className="mt-2 text-sm text-slate-600">{dashboard.firstName} {dashboard.lastName} · {dashboard.email}</p></div>
+              <div><p className="text-sm font-medium text-blue-800">Görev yaptığınız yurt</p><h2 className="mt-1 text-xl font-semibold text-slate-950">{dashboard.dormitoryName}</h2><p className="mt-2 text-sm font-semibold text-slate-700">Aktif dönem: {dashboard.activeTermName}</p><p className="mt-1 text-sm text-slate-600">{dashboard.firstName} {dashboard.lastName} · {dashboard.email}</p></div>
               <Link to="/reviewer/documents" className="inline-flex min-h-10 items-center justify-center gap-2 bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"><Clock3 aria-hidden="true" size={17} /> Bekleyen belgeleri aç</Link>
             </article>
 

@@ -12,6 +12,9 @@ public record ReviewerDashboardResponse(
         Long dormitoryId,
         String dormitoryName,
 
+        Long activeTermId,
+        String activeTermName,
+
         long activeStudentCount,
         long completedStudentCount,
         long incompleteStudentCount,
