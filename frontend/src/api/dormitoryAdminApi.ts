@@ -9,6 +9,7 @@ import type {
   UpdateReviewerRequest,
   UserResponse,
 } from '../types/dormitoryAdmin'
+import type { TermDocumentRequirementResponse } from '../types/globalAdmin'
 import { httpClient } from './httpClient'
 
 export async function getDormitoryAdminDashboard(): Promise<DormitoryAdminDashboardResponse> {
@@ -69,6 +70,15 @@ export async function getAdmissionDocuments(
 ): Promise<DormitoryAdmissionDocuments> {
   const response = await httpClient.get<DormitoryAdmissionDocuments>(
     `/student-documents/admission/${admissionId}`,
+  )
+  return response.data
+}
+
+export async function getActiveTermDocumentRequirements(
+  termId: number,
+): Promise<TermDocumentRequirementResponse[]> {
+  const response = await httpClient.get<TermDocumentRequirementResponse[]>(
+    `/term-document-requirements/term/${termId}/active`,
   )
   return response.data
 }

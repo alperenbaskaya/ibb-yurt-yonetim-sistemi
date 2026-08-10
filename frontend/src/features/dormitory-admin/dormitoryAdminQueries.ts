@@ -4,6 +4,7 @@ import {
   createDormitoryReviewer,
   downloadAdminDocument,
   getAdmissionDocuments,
+  getActiveTermDocumentRequirements,
   getCurrentTermDormitoryAdmissions,
   getDormitoryAdminDashboard,
   getDormitoryReviewers,
@@ -24,6 +25,15 @@ export const dormitoryAdminQueryKeys = {
   students: (userId: number) => [...dormitoryAdminQueryKeys.root(userId), 'students'] as const,
   reviewers: (userId: number) => [...dormitoryAdminQueryKeys.root(userId), 'reviewers'] as const,
   documents: (userId: number, admissionId: number) => [...dormitoryAdminQueryKeys.root(userId), 'documents', admissionId] as const,
+  requirements: (userId: number, termId: number) => [...dormitoryAdminQueryKeys.root(userId), 'requirements', termId] as const,
+}
+
+export function useActiveTermDocumentRequirements(userId: number, termId: number | null) {
+  return useQuery({
+    queryKey: dormitoryAdminQueryKeys.requirements(userId, termId ?? 0),
+    queryFn: () => getActiveTermDocumentRequirements(termId!),
+    enabled: termId !== null,
+  })
 }
 
 export function useDormitoryAdminDashboard(userId: number) {
