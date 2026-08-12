@@ -1,13 +1,12 @@
 package com.ibb.yurtlar.controller;
 
 import com.ibb.yurtlar.dto.NotificationResponse;
+import com.ibb.yurtlar.dto.NotificationPageResponse;
 import com.ibb.yurtlar.dto.NotificationUnreadCountResponse;
 import com.ibb.yurtlar.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -24,24 +23,28 @@ public class NotificationController {
     }
 
     @GetMapping("/me")
-    public List<NotificationResponse>
+    public NotificationPageResponse
     getMyNotifications(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             Authentication authentication
     ) {
         return notificationService
                 .getMyNotifications(
-                        authentication.getName()
+                        authentication.getName(), page, size
                 );
     }
 
     @GetMapping("/me/unread")
-    public List<NotificationResponse>
+    public NotificationPageResponse
     getMyUnreadNotifications(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             Authentication authentication
     ) {
         return notificationService
                 .getMyUnreadNotifications(
-                        authentication.getName()
+                        authentication.getName(), page, size
                 );
     }
 

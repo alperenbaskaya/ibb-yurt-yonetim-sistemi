@@ -4,6 +4,9 @@ import com.ibb.yurtlar.dto.AdmissionResponse;
 import com.ibb.yurtlar.dto.CreateAdmissionRequest;
 import com.ibb.yurtlar.dto.CurrentTermAdmissionSummaryResponse;
 import com.ibb.yurtlar.dto.UpdateAdmissionStatusRequest;
+import com.ibb.yurtlar.dto.AdmissionPageResponse;
+import com.ibb.yurtlar.dto.BulkApproveAdmissionsRequest;
+import com.ibb.yurtlar.dto.BulkApproveAdmissionsResponse;
 import com.ibb.yurtlar.enums.AdmissionStatus;
 import com.ibb.yurtlar.service.AdmissionService;
 import jakarta.validation.Valid;
@@ -150,5 +153,36 @@ public class AdmissionController {
                 .getCurrentTermSummary(
                         authentication.getName()
                 );
+    }
+
+    @GetMapping("/current-term/global")
+    public AdmissionPageResponse getGlobalCurrentTermAdmissions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) AdmissionStatus status,
+            Authentication authentication
+    ) {
+        return admissionService.getGlobalCurrentTermAdmissions(
+                page, size, status, authentication.getName()
+        );
+    }
+
+    @PostMapping("/current-term/global/approve-selected")
+    public BulkApproveAdmissionsResponse approveSelected(
+            @Valid @RequestBody BulkApproveAdmissionsRequest request,
+            Authentication authentication
+    ) {
+        return admissionService.approveSelectedCurrentTermAdmissions(
+                request, authentication.getName()
+        );
+    }
+
+    @PostMapping("/current-term/global/approve-all")
+    public BulkApproveAdmissionsResponse approveAllPending(
+            Authentication authentication
+    ) {
+        return admissionService.approveAllPendingCurrentTermAdmissions(
+                authentication.getName()
+        );
     }
 }

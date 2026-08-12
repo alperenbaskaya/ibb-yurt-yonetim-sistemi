@@ -59,6 +59,32 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(InvalidAdmissionRequestException.class)
+    public ResponseEntity<ApiError> handleInvalidAdmissionRequest(
+            InvalidAdmissionRequestException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.badRequest().body(createApiError(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                request.getRequestURI(),
+                null
+        ));
+    }
+
+    @ExceptionHandler(InvalidNotificationPageRequestException.class)
+    public ResponseEntity<ApiError> handleInvalidNotificationPageRequest(
+            InvalidNotificationPageRequestException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.badRequest().body(createApiError(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                request.getRequestURI(),
+                null
+        ));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(
             AccessDeniedException exception,

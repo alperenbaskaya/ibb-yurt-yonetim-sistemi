@@ -7,6 +7,8 @@ import com.ibb.yurtlar.enums.AdmissionStatus;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import jakarta.persistence.LockModeType;
 
 import java.util.Optional;
@@ -174,6 +176,42 @@ public interface AdmissionRepository extends JpaRepository<Admission, Long> {
 
             @Param("status")
             AdmissionStatus status
+    );
+
+    @Query(
+            value = """
+                SELECT a FROM Admission a
+                JOIN FETCH a.student student
+                JOIN FETCH student.user studentUser
+                JOIN FETCH a.dormitoryTerm term
+                JOIN FETCH a.dormitory dormitory
+                WHERE term.id = :termId
+                  AND (:status IS NULL OR a.status = :status)
+                """,
+            countQuery = """
+                SELECT COUNT(a) FROM Admission a
+                WHERE a.dormitoryTerm.id = :termId
+                  AND (:status IS NULL OR a.status = :status)
+                """
+    )
+    Page<Admission> findGlobalCurrentTermPage(
+            @Param("termId") Long termId,
+            @Param("status") AdmissionStatus status,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT a FROM Admission a
+        JOIN FETCH a.student student
+        JOIN FETCH student.user studentUser
+        JOIN FETCH a.dormitoryTerm term
+        JOIN FETCH a.dormitory dormitory
+        WHERE term.id = :termId AND a.status = :status
+        ORDER BY a.createdAt DESC, a.id DESC
+        """)
+    List<Admission> findAllByTermIdAndStatus(
+            @Param("termId") Long termId,
+            @Param("status") AdmissionStatus status
     );
 
     @Query("""

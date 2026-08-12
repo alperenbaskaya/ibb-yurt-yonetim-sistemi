@@ -5,6 +5,7 @@ import com.ibb.yurtlar.entity.AppUser;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 import java.util.List;
+import java.util.Collection;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.ibb.yurtlar.enums.AdminScope;
@@ -167,6 +168,20 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     List<AppUser> findActiveDormitoryAdminsByDormitory(
             @Param("dormitoryId")
             Long dormitoryId
+    );
+
+    @Query("""
+        SELECT admin
+        FROM AppUser admin
+        JOIN FETCH admin.dormitory dormitory
+        WHERE admin.role = com.ibb.yurtlar.enums.Role.ADMIN
+          AND admin.adminScope = com.ibb.yurtlar.enums.AdminScope.DORMITORY
+          AND admin.active = true
+          AND dormitory.id IN :dormitoryIds
+        ORDER BY dormitory.id ASC, admin.id ASC
+        """)
+    List<AppUser> findActiveDormitoryAdminsByDormitoryIds(
+            @Param("dormitoryIds") Collection<Long> dormitoryIds
     );
 }
 

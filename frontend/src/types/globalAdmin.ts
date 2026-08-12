@@ -104,6 +104,24 @@ export interface GlobalAdminDashboardResponse {
   dormitoryStatistics: GlobalDormitoryStatisticsResponse[]
 }
 
+export interface AdmissionPageResponse {
+  content: AdmissionResponse[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
+export interface BulkApproveAdmissionsRequest {
+  admissionIds: number[]
+}
+
+export interface BulkApproveAdmissionsResponse {
+  approvedCount: number
+}
+
 export interface DormitoryResponse { id: number; name: string; address: string | null; capacity: number; active: boolean; createdAt: string; updatedAt: string }
 export interface CreateDormitoryRequest { name: string; address: string | null; capacity: number }
 export interface UpdateDormitoryRequest extends CreateDormitoryRequest { active: boolean }

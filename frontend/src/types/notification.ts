@@ -28,3 +28,13 @@ export interface NotificationResponse {
 export interface NotificationUnreadCountResponse {
   unreadCount: number
 }
+
+export interface NotificationPageResponse {
+  content: NotificationResponse[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}

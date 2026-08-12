@@ -6,6 +6,7 @@ import type {
   DormitoryResponse, DormitoryTermRequest, DormitoryTermResponse,
   GlobalAdminDashboardResponse, StudentResponse, TermDocumentRequirementResponse,
   UpdateDocumentTypeRequest, UpdateDormitoryRequest, UpdateUserRequest, UserResponse,
+  AdmissionPageResponse, BulkApproveAdmissionsRequest, BulkApproveAdmissionsResponse,
 } from '../types/globalAdmin'
 import { httpClient } from './httpClient'
 
@@ -17,8 +18,10 @@ export const getGlobalUsers = async () => (await httpClient.get<UserResponse[]>(
 export const createGlobalUser = async (request: CreateUserRequest) => (await httpClient.post<UserResponse>('/users', request)).data
 export const updateGlobalUser = async (id: number, request: UpdateUserRequest) => (await httpClient.put<UserResponse>(`/users/${id}`, request)).data
 export const getGlobalStudentsByDormitory = async (dormitoryId: number) => (await httpClient.get<StudentResponse[]>('/students/global', { params: { dormitoryId } })).data
-export const getGlobalAdmissions = async (status?: AdmissionStatus) => (await httpClient.get<AdmissionResponse[]>('/admissions/current-term', { params: status ? { status } : undefined })).data
+export const getGlobalAdmissions = async (page: number, status?: AdmissionStatus) => (await httpClient.get<AdmissionPageResponse>('/admissions/current-term/global', { params: { page, size: 10, ...(status ? { status } : {}) } })).data
 export const updateGlobalAdmissionStatus = async (id: number, request: UpdateAdmissionStatusRequest) => (await httpClient.patch<AdmissionResponse>(`/admissions/${id}/status`, request)).data
+export const approveSelectedGlobalAdmissions = async (request: BulkApproveAdmissionsRequest) => (await httpClient.post<BulkApproveAdmissionsResponse>('/admissions/current-term/global/approve-selected', request)).data
+export const approveAllPendingGlobalAdmissions = async () => (await httpClient.post<BulkApproveAdmissionsResponse>('/admissions/current-term/global/approve-all')).data
 export const getDormitoryTerms = async () => (await httpClient.get<DormitoryTermResponse[]>('/dormitory-terms')).data
 export const createDormitoryTerm = async (request: DormitoryTermRequest) => (await httpClient.post<DormitoryTermResponse>('/dormitory-terms', request)).data
 export const updateDormitoryTerm = async (id: number, request: DormitoryTermRequest) => (await httpClient.put<DormitoryTermResponse>(`/dormitory-terms/${id}`, request)).data

@@ -2,12 +2,14 @@ package com.ibb.yurtlar.service;
 
 import com.ibb.yurtlar.dto.NotificationResponse;
 import com.ibb.yurtlar.dto.NotificationUnreadCountResponse;
+import com.ibb.yurtlar.dto.NotificationPageResponse;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.Notification;
 import com.ibb.yurtlar.enums.NotificationReferenceType;
 import com.ibb.yurtlar.enums.NotificationType;
 import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.exception.NotificationNotFoundException;
+import com.ibb.yurtlar.exception.InvalidNotificationPageRequestException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.NotificationRepository;
 import org.springframework.security.access.AccessDeniedException;
@@ -15,7 +17,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 public class NotificationService {
@@ -97,6 +100,25 @@ public class NotificationService {
     }
 
     @Transactional
+    public NotificationResponse createNotification(
+            AppUser recipient,
+            NotificationType type,
+            String title,
+            String message,
+            NotificationReferenceType referenceType,
+            Long referenceId
+    ) {
+        Notification notification = new Notification();
+        notification.setRecipient(recipient);
+        notification.setType(type);
+        notification.setTitle(title);
+        notification.setMessage(message);
+        notification.setReferenceType(referenceType);
+        notification.setReferenceId(referenceId);
+        return toResponse(notificationRepository.save(notification));
+    }
+
+    @Transactional
     public NotificationResponse createNotificationIfAbsent(
             Long recipientUserId,
             NotificationType type,
@@ -129,45 +151,37 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public List<NotificationResponse>
+    public NotificationPageResponse
     getMyNotifications(
-            String email
+            String email, int page, int size
     ) {
         AppUser authenticatedUser =
                 findAuthenticatedUser(
                         email
                 );
 
-        return notificationRepository
+        validatePage(page, size);
+        return toPageResponse(notificationRepository
                 .findAllForRecipient(
-                        authenticatedUser.getId()
-                )
-                .stream()
-                .map(
-                        this::toResponse
-                )
-                .toList();
+                        authenticatedUser.getId(), PageRequest.of(page, size)
+                ));
     }
 
     @Transactional(readOnly = true)
-    public List<NotificationResponse>
+    public NotificationPageResponse
     getMyUnreadNotifications(
-            String email
+            String email, int page, int size
     ) {
         AppUser authenticatedUser =
                 findAuthenticatedUser(
                         email
                 );
 
-        return notificationRepository
+        validatePage(page, size);
+        return toPageResponse(notificationRepository
                 .findUnreadForRecipient(
-                        authenticatedUser.getId()
-                )
-                .stream()
-                .map(
-                        this::toResponse
-                )
-                .toList();
+                        authenticatedUser.getId(), PageRequest.of(page, size)
+                ));
     }
 
     @Transactional(readOnly = true)
@@ -292,5 +306,22 @@ public class NotificationService {
 
                 notification.getCreatedAt()
         );
+    }
+
+    private NotificationPageResponse toPageResponse(Page<Notification> notificationPage) {
+        return new NotificationPageResponse(
+                notificationPage.getContent().stream().map(this::toResponse).toList(),
+                notificationPage.getNumber(), notificationPage.getSize(),
+                notificationPage.getTotalElements(), notificationPage.getTotalPages(),
+                notificationPage.isFirst(), notificationPage.isLast()
+        );
+    }
+
+    private void validatePage(int page, int size) {
+        if (page < 0 || size < 1 || size > 100) {
+            throw new InvalidNotificationPageRequestException(
+                    "Sayfa 0 veya daha büyük, sayfa boyutu 1 ile 100 arasında olmalıdır."
+            );
+        }
     }
 }

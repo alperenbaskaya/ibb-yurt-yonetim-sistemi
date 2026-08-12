@@ -9,6 +9,8 @@ import com.ibb.yurtlar.enums.NotificationReferenceType;
 import com.ibb.yurtlar.enums.NotificationType;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface NotificationRepository
         extends JpaRepository<Notification, Long> {
@@ -18,11 +20,12 @@ public interface NotificationRepository
             FROM Notification notification
             JOIN FETCH notification.recipient recipient
             WHERE recipient.id = :recipientUserId
-            ORDER BY notification.createdAt DESC
+            ORDER BY notification.createdAt DESC, notification.id DESC
             """)
-    List<Notification> findAllForRecipient(
+    Page<Notification> findAllForRecipient(
             @Param("recipientUserId")
-            Long recipientUserId
+            Long recipientUserId,
+            Pageable pageable
     );
 
     @Query("""
@@ -31,11 +34,12 @@ public interface NotificationRepository
             JOIN FETCH notification.recipient recipient
             WHERE recipient.id = :recipientUserId
               AND notification.read = false
-            ORDER BY notification.createdAt DESC
+            ORDER BY notification.createdAt DESC, notification.id DESC
             """)
-    List<Notification> findUnreadForRecipient(
+    Page<Notification> findUnreadForRecipient(
             @Param("recipientUserId")
-            Long recipientUserId
+            Long recipientUserId,
+            Pageable pageable
     );
 
     @Query("""

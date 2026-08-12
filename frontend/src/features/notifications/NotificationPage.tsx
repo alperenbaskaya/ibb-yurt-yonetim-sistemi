@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck, Inbox, LoaderCircle } from 'lucide-react'
+import { Bell, Check, CheckCheck, ChevronLeft, ChevronRight, Inbox, LoaderCircle } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { PageHeader } from '../../components/common/PageHeader'
@@ -14,6 +14,7 @@ import {
   useMarkAllNotificationsAsRead,
   useMarkNotificationAsRead,
   useMyNotifications,
+  useMyUnreadCount,
 } from './notificationQueries'
 
 type NotificationFilter = 'ALL' | 'UNREAD'
@@ -109,19 +110,19 @@ export function NotificationPage() {
   const { user } = useAuth()
   const userId = user?.userId ?? 0
   const [filter, setFilter] = useState<NotificationFilter>('ALL')
-  const notificationsQuery = useMyNotifications(userId)
+  const [page, setPage] = useState(0)
+  const notificationsQuery = useMyNotifications(userId, page, filter === 'UNREAD')
+  const unreadCountQuery = useMyUnreadCount(user?.userId ?? null)
   const markReadMutation = useMarkNotificationAsRead(userId)
   const markAllMutation = useMarkAllNotificationsAsRead(userId)
 
-  const notifications = notificationsQuery.data ?? []
-  const unreadCount = notifications.filter((notification) => !notification.read).length
-  const visibleNotifications = filter === 'UNREAD'
-    ? notifications.filter((notification) => !notification.read)
-    : notifications
+  const notifications = notificationsQuery.data?.content ?? []
+  const unreadCount = unreadCountQuery.data?.unreadCount ?? 0
+  const changeFilter = (nextFilter: NotificationFilter) => { setFilter(nextFilter); setPage(0) }
 
   const handleMarkRead = (notificationId: number) => {
     markReadMutation.mutate(notificationId, {
-      onSuccess: () => toast.success('Bildirim okundu olarak işaretlendi.'),
+      onSuccess: () => { if (filter === 'UNREAD') setPage(0); toast.success('Bildirim okundu olarak işaretlendi.') },
       onError: (error: unknown) => toast.error(
         getApiErrorMessage(error, 'Bildirim güncellenemedi. Lütfen tekrar deneyin.'),
       ),
@@ -130,7 +131,7 @@ export function NotificationPage() {
 
   const handleMarkAllRead = () => {
     markAllMutation.mutate(undefined, {
-      onSuccess: () => toast.success('Tüm bildirimler okundu olarak işaretlendi.'),
+      onSuccess: () => { setPage(0); toast.success('Tüm bildirimler okundu olarak işaretlendi.') },
       onError: (error: unknown) => toast.error(
         getApiErrorMessage(error, 'Bildirimler güncellenemedi. Lütfen tekrar deneyin.'),
       ),
@@ -162,13 +163,13 @@ export function NotificationPage() {
       {!notificationsQuery.isLoading && !notificationsQuery.isError && (
         <div className="mt-6 flex flex-wrap items-center gap-2" aria-label="Bildirim filtreleri">
           {([
-            ['ALL', `Tümü (${notifications.length})`],
+            ['ALL', 'Tümü'],
             ['UNREAD', `Okunmamış (${unreadCount})`],
           ] as const).map(([value, label]) => (
             <button
               key={value}
               type="button"
-              onClick={() => setFilter(value)}
+              onClick={() => changeFilter(value)}
               aria-pressed={filter === value}
               className={`min-h-9 border px-4 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
                 filter === value
@@ -205,7 +206,7 @@ export function NotificationPage() {
         </div>
       )}
 
-      {notificationsQuery.isSuccess && visibleNotifications.length === 0 && (
+      {notificationsQuery.isSuccess && notifications.length === 0 && (
         <div className="mt-6 flex min-h-64 flex-col items-center justify-center border border-slate-200 bg-white px-6 text-center shadow-sm">
           <span className="flex size-12 items-center justify-center bg-slate-100 text-slate-500">
             <Inbox aria-hidden="true" size={25} />
@@ -221,16 +222,21 @@ export function NotificationPage() {
         </div>
       )}
 
-      {notificationsQuery.isSuccess && visibleNotifications.length > 0 && (
-        <div className="mt-6 space-y-3" aria-live="polite">
-          {visibleNotifications.map((notification) => (
+      {notificationsQuery.isSuccess && notifications.length > 0 && (
+        <div className="mt-6" aria-live="polite">
+          <div className="space-y-3">{notifications.map((notification) => (
             <NotificationItem
               key={notification.id}
               notification={notification}
               isMarkingRead={markReadMutation.isPending && markReadMutation.variables === notification.id}
               onMarkRead={handleMarkRead}
             />
-          ))}
+          ))}</div>
+          <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4">
+            <button type="button" disabled={notificationsQuery.data.first} onClick={() => setPage(current => current - 1)} className="inline-flex min-h-9 items-center gap-1 border border-slate-300 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50"><ChevronLeft size={16}/>Önceki</button>
+            <p className="text-sm font-medium text-slate-600">Sayfa {notificationsQuery.data.page + 1} / {notificationsQuery.data.totalPages}</p>
+            <button type="button" disabled={notificationsQuery.data.last} onClick={() => setPage(current => current + 1)} className="inline-flex min-h-9 items-center gap-1 border border-slate-300 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50">Sonraki<ChevronRight size={16}/></button>
+          </div>
         </div>
       )}
     </section>

@@ -1,12 +1,14 @@
 import type {
   NotificationResponse,
   NotificationUnreadCountResponse,
+  NotificationPageResponse,
 } from '../types/notification'
 import { httpClient } from './httpClient'
 
-export async function getMyNotifications(): Promise<NotificationResponse[]> {
-  const response = await httpClient.get<NotificationResponse[]>(
-    '/notifications/me',
+export async function getMyNotifications(page: number, unreadOnly: boolean): Promise<NotificationPageResponse> {
+  const response = await httpClient.get<NotificationPageResponse>(
+    unreadOnly ? '/notifications/me/unread' : '/notifications/me',
+    { params: { page, size: 10 } },
   )
   return response.data
 }

@@ -8,16 +8,18 @@ import {
 
 export const notificationQueryKeys = {
   root: ['notifications'] as const,
-  list: (userId: number) =>
+  lists: (userId: number) =>
     [...notificationQueryKeys.root, userId, 'list'] as const,
+  list: (userId: number, page: number, unreadOnly: boolean) =>
+    [...notificationQueryKeys.lists(userId), page, unreadOnly ? 'UNREAD' : 'ALL'] as const,
   unreadCount: (userId: number) =>
     [...notificationQueryKeys.root, userId, 'unread-count'] as const,
 }
 
-export function useMyNotifications(userId: number) {
+export function useMyNotifications(userId: number, page: number, unreadOnly: boolean) {
   return useQuery({
-    queryKey: notificationQueryKeys.list(userId),
-    queryFn: getMyNotifications,
+    queryKey: notificationQueryKeys.list(userId, page, unreadOnly),
+    queryFn: () => getMyNotifications(page, unreadOnly),
   })
 }
 
@@ -36,7 +38,7 @@ function useInvalidateNotificationState(userId: number) {
   return async () => {
     await Promise.all([
       queryClient.invalidateQueries({
-        queryKey: notificationQueryKeys.list(userId),
+        queryKey: notificationQueryKeys.lists(userId),
       }),
       queryClient.invalidateQueries({
         queryKey: notificationQueryKeys.unreadCount(userId),
