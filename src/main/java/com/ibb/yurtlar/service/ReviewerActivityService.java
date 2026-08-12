@@ -28,13 +28,16 @@ public class ReviewerActivityService {
 
     private final AuditLogRepository auditLogRepository;
     private final AppUserRepository appUserRepository;
+    private final ReviewerRecentActivityProjection projection;
 
     public ReviewerActivityService(
             AuditLogRepository auditLogRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            ReviewerRecentActivityProjection projection
     ) {
         this.auditLogRepository = auditLogRepository;
         this.appUserRepository = appUserRepository;
+        this.projection = projection;
     }
 
     @Transactional(readOnly = true)
@@ -55,7 +58,14 @@ public class ReviewerActivityService {
             );
         }
 
-        return auditLogRepository.findRecentByDormitoryCategoryAndActions(
+        var projectedActivities = projection.readRecent(
+                dormitory.getId(), RECENT_ACTIVITY_LIMIT);
+        if (projectedActivities.isPresent()) {
+            return projectedActivities.get();
+        }
+
+        List<AuditLogResponse> activities = auditLogRepository
+                .findRecentByDormitoryCategoryAndActions(
                         dormitory.getId(),
                         AuditCategory.STUDENT_ACTIVITY,
                         INCLUDED_ACTIONS,
@@ -63,6 +73,8 @@ public class ReviewerActivityService {
                 ).stream()
                 .map(this::toResponse)
                 .toList();
+        projection.mergeAndInitialize(dormitory.getId(), activities);
+        return activities;
     }
 
     private AuditLogResponse toResponse(AuditLog auditLog) {

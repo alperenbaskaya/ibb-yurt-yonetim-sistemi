@@ -3,19 +3,24 @@ package com.ibb.yurtlar.service;
 import com.ibb.yurtlar.entity.*;
 import com.ibb.yurtlar.enums.*;
 import com.ibb.yurtlar.exception.InvalidCredentialsException;
+import com.ibb.yurtlar.event.AuditLogRecordedEvent;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AuditLogRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuditLogService {
     private final AuditLogRepository auditLogRepository;
     private final AppUserRepository appUserRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AuditLogService(AuditLogRepository auditLogRepository,
-                           AppUserRepository appUserRepository) {
+                           AppUserRepository appUserRepository,
+                           ApplicationEventPublisher eventPublisher) {
         this.auditLogRepository = auditLogRepository;
         this.appUserRepository = appUserRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public void recordStudentEvent(String actorEmail, AuditCategory category,
@@ -60,13 +65,23 @@ public class AuditLogService {
         String studentName = student == null ? null
                 : student.getUser().getFirstName() + " " + student.getUser().getLastName();
 
-        auditLogRepository.save(new AuditLog(
+        AuditLog savedAuditLog = auditLogRepository.save(new AuditLog(
                 actor.getId(), actorName, actor.getRole(),
                 student == null ? null : student.getId(), studentName,
                 dormitory == null ? null : dormitory.getId(),
                 dormitory == null ? null : dormitory.getName(),
                 category, action, entityType, entityId,
                 targetLabel, description
+        ));
+        eventPublisher.publishEvent(new AuditLogRecordedEvent(
+                savedAuditLog.getId(), savedAuditLog.getActorUserId(),
+                savedAuditLog.getActorName(), savedAuditLog.getActorRole(),
+                savedAuditLog.getSubjectStudentId(), savedAuditLog.getSubjectStudentName(),
+                savedAuditLog.getDormitoryId(), savedAuditLog.getDormitoryName(),
+                savedAuditLog.getCategory(), savedAuditLog.getAction(),
+                savedAuditLog.getEntityType(), savedAuditLog.getEntityId(),
+                savedAuditLog.getTargetLabel(), savedAuditLog.getDescription(),
+                savedAuditLog.getCreatedAt()
         ));
     }
 }
