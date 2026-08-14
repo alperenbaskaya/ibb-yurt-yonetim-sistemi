@@ -47,6 +47,8 @@ import com.ibb.yurtlar.exception.AdmissionAccessDeniedException;
 import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
 import com.ibb.yurtlar.enums.NotificationReferenceType;
 import com.ibb.yurtlar.enums.NotificationType;
+import com.ibb.yurtlar.kafka.event.DocumentUploadedEvent;
+import java.util.UUID;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -74,7 +76,10 @@ public class StudentDocumentService {
     private final DormitoryTermRepository dormitoryTermRepository;
 
     private final NotificationService notificationService;
+
     private final AuditLogService auditLogService;
+
+    private final OutboxEventService outboxEventService;
 
     public StudentDocumentService(
             StudentDocumentRepository studentDocumentRepository,
@@ -86,7 +91,8 @@ public class StudentDocumentService {
             AppUserRepository appUserRepository,
             DormitoryTermRepository dormitoryTermRepository,
             NotificationService notificationService,
-            AuditLogService auditLogService
+            AuditLogService auditLogService,
+            OutboxEventService outboxEventService
     ) {
         this.studentDocumentRepository =
                 studentDocumentRepository;
@@ -113,6 +119,7 @@ public class StudentDocumentService {
         this.notificationService = notificationService;
         this.auditLogService = auditLogService;
 
+        this.outboxEventService = outboxEventService;
     }
 
     @Transactional
@@ -304,40 +311,22 @@ public class StudentDocumentService {
             DocumentType documentType,
             StoredFileInfo storedFileInfo
     ) {
-        StudentDocument document =
-                new StudentDocument();
+        StudentDocument document = new StudentDocument();
 
-        document.setAdmission(
-                admission
-        );
+        document.setAdmission(admission);
 
-        document.setDocumentType(
-                documentType
-        );
+        document.setDocumentType(documentType);
 
-        applyStoredFileInfo(
-                document,
-                storedFileInfo
-        );
+        applyStoredFileInfo(document, storedFileInfo);
 
-        document.setStatus(
-                StudentDocumentStatus.UPLOADED
-        );
+        document.setStatus(StudentDocumentStatus.UPLOADED);
 
-        StudentDocument savedDocument =
-                studentDocumentRepository
-                        .save(
-                                document
-                        );
+        StudentDocument savedDocument = studentDocumentRepository.save(document);
+        recordDocumentUploadedOutbox(savedDocument);
 
-        createReviewerUploadNotification(
-                savedDocument
-        );
+        createReviewerUploadNotification(savedDocument);
 
-        return studentDocumentMapper
-                .toResponse(
-                        savedDocument
-                );
+        return studentDocumentMapper.toResponse(savedDocument);
     }
 
     private StudentDocumentResponse replaceExistingDocument(
@@ -1153,5 +1142,41 @@ public class StudentDocumentService {
                             document.getId()
                     );
         }
+    }
+
+    private void recordDocumentUploadedOutbox(
+            StudentDocument document
+    ) {
+
+        Admission admission =
+                document.getAdmission();
+
+        Long studentId =
+                admission.getStudent().getId();
+
+        String eventId =
+                UUID.randomUUID().toString();
+
+        DocumentUploadedEvent event =
+                new DocumentUploadedEvent(
+                        eventId,
+                        "DOCUMENT_UPLOADED",
+                        studentId,
+                        admission.getId(),
+                        document.getId(),
+                        document.getDocumentType().getId(),
+                        admission.getDormitory().getId(),
+                        LocalDateTime.now()
+                );
+
+        outboxEventService.recordPending(
+                eventId,
+                "DOCUMENT_UPLOADED",
+                "STUDENT_DOCUMENT",
+                document.getId(),
+                "dormitory-activity-events",
+                "student-" + studentId,
+                event
+        );
     }
 }
