@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.ReviewerStudentResponse;
 import com.ibb.yurtlar.dto.ReviewerStudentDocumentProcessItemResponse;
 import com.ibb.yurtlar.dto.ReviewerStudentDocumentProcessResponse;
@@ -11,11 +15,6 @@ import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.enums.StudentDocumentStatus;
 import com.ibb.yurtlar.entity.StudentDocument;
 import com.ibb.yurtlar.entity.TermDocumentRequirement;
-import com.ibb.yurtlar.exception.AdmissionAccessDeniedException;
-import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
-import com.ibb.yurtlar.exception.UserIsNotReviewerException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.DormitoryTermRepository;
@@ -62,27 +61,27 @@ public class ReviewerStudentService {
     ) {
         AppUser reviewer = appUserRepository
                 .findByNormalizedEmail(reviewerEmail)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
 
         if (reviewer.getRole() != Role.REVIEWER) {
-            throw new UserIsNotReviewerException(reviewer.getId());
+            throw new BusinessException(USER_IS_NOT_REVIEWER, reviewer.getId());
         }
 
         if (!reviewer.isActive()) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
 
         Dormitory dormitory = reviewer.getDormitory();
 
         if (dormitory == null) {
-            throw new InvalidUserConfigurationException(
+            throw new BusinessException(INVALID_USER_CONFIGURATION,
                     "Reviewer kullanıcısına bir yurt atanmamıştır."
             );
         }
 
         DormitoryTerm activeTerm = dormitoryTermRepository
                 .findByActiveTrue()
-                .orElseThrow(ActiveDormitoryTermNotFoundException::new);
+                .orElseThrow(() -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND));
 
         return studentRepository.findReviewerStudentsByDormitoryAndTerm(
                 dormitory.getId(),
@@ -105,8 +104,7 @@ public class ReviewerStudentService {
                         dormitory.getId(),
                         activeTerm.getId()
                 )
-                .orElseThrow(() -> new AdmissionAccessDeniedException(
-                        "Bu öğrencinin aktif belge sürecine erişim yetkiniz bulunmamaktadır."
+                .orElseThrow(() -> new BusinessException(ADMISSION_ACCESS_DENIED_MESSAGE, "Bu öğrencinin aktif belge sürecine erişim yetkiniz bulunmamaktadır."
                 ));
 
         List<TermDocumentRequirement> requirements =
@@ -174,14 +172,14 @@ public class ReviewerStudentService {
     private AppUser findActiveReviewer(String reviewerEmail) {
         AppUser reviewer = appUserRepository
                 .findByNormalizedEmail(reviewerEmail)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
 
         if (reviewer.getRole() != Role.REVIEWER) {
-            throw new UserIsNotReviewerException(reviewer.getId());
+            throw new BusinessException(USER_IS_NOT_REVIEWER, reviewer.getId());
         }
 
         if (!reviewer.isActive()) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
 
         return reviewer;
@@ -191,7 +189,7 @@ public class ReviewerStudentService {
         Dormitory dormitory = reviewer.getDormitory();
 
         if (dormitory == null) {
-            throw new InvalidUserConfigurationException(
+            throw new BusinessException(INVALID_USER_CONFIGURATION,
                     "Reviewer kullanıcısına bir yurt atanmamıştır."
             );
         }
@@ -202,6 +200,6 @@ public class ReviewerStudentService {
     private DormitoryTerm findActiveTerm() {
         return dormitoryTermRepository
                 .findByActiveTrue()
-                .orElseThrow(ActiveDormitoryTermNotFoundException::new);
+                .orElseThrow(() -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND));
     }
 }

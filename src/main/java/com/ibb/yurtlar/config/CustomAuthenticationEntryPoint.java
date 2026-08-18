@@ -1,6 +1,6 @@
 package com.ibb.yurtlar.config;
 
-import com.ibb.yurtlar.exception.ApiError;
+import com.ibb.yurtlar.exception.dto.ErrorResponse;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -33,11 +33,12 @@ public class CustomAuthenticationEntryPoint
             AuthenticationException authenticationException
     ) throws IOException, ServletException {
 
-        ApiError apiError =
-                new ApiError(
+        ErrorResponse errorResponse =
+                new ErrorResponse(
                         LocalDateTime.now(),
                         HttpStatus.UNAUTHORIZED.value(),
                         HttpStatus.UNAUTHORIZED.getReasonPhrase(),
+                        "AUTHENTICATION_REQUIRED",
                         "Kimlik doğrulaması gereklidir. "
                                 + "Geçerli bir erişim tokenı gönderiniz.",
                         request.getRequestURI(),
@@ -58,7 +59,7 @@ public class CustomAuthenticationEntryPoint
 
         objectMapper.writeValue(
                 response.getOutputStream(),
-                apiError
+                errorResponse
         );
     }
 }

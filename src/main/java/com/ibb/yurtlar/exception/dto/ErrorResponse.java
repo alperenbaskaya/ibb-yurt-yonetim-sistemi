@@ -1,12 +1,13 @@
-package com.ibb.yurtlar.exception;
+package com.ibb.yurtlar.exception.dto;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
-public record ApiError(
+public record ErrorResponse(
         LocalDateTime timestamp,
         int status,
         String error,
+        String code,
         String message,
         String path,
         Map<String, String> validationErrors

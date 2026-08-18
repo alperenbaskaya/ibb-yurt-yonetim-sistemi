@@ -1,8 +1,11 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.entity.*;
 import com.ibb.yurtlar.enums.*;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
 import com.ibb.yurtlar.event.AuditLogRecordedEvent;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AuditLogRepository;
@@ -60,7 +63,7 @@ public class AuditLogService {
                         Long entityId, String targetLabel, Student student,
                         Dormitory dormitory, String description) {
         AppUser actor = appUserRepository.findByNormalizedEmail(actorEmail)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
         String actorName = actor.getFirstName() + " " + actor.getLastName();
         String studentName = student == null ? null
                 : student.getUser().getFirstName() + " " + student.getUser().getLastName();

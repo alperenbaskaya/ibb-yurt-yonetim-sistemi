@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.AdmissionResponse;
 import com.ibb.yurtlar.dto.CreateAdmissionRequest;
 import com.ibb.yurtlar.dto.UpdateAdmissionStatusRequest;
@@ -14,29 +18,16 @@ import com.ibb.yurtlar.enums.AdmissionStatus;
 import com.ibb.yurtlar.enums.AuditAction;
 import com.ibb.yurtlar.enums.AuditCategory;
 import com.ibb.yurtlar.enums.AuditEntityType;
-import com.ibb.yurtlar.exception.AdmissionAlreadyExistsException;
-import com.ibb.yurtlar.exception.AdmissionNotFoundException;
-import com.ibb.yurtlar.exception.DormitoryTermNotFoundException;
-import com.ibb.yurtlar.exception.StudentNotFoundException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.DormitoryTermRepository;
 import com.ibb.yurtlar.repository.StudentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
 import com.ibb.yurtlar.dto.CurrentTermAdmissionSummaryResponse;
 import com.ibb.yurtlar.entity.Dormitory;
-import com.ibb.yurtlar.exception.DormitoryNotFoundException;
-import com.ibb.yurtlar.exception.InactiveDormitoryException;
 import com.ibb.yurtlar.repository.DormitoryRepository;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.AdmissionAccessDeniedException;
-import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
-import com.ibb.yurtlar.exception.InvalidAdmissionStatusTransitionException;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.UserIsNotAdminException;
-import com.ibb.yurtlar.exception.InvalidAdmissionRequestException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.enums.NotificationReferenceType;
 import com.ibb.yurtlar.enums.NotificationType;
@@ -97,7 +88,7 @@ public class AdmissionService {
                 studentRepository
                         .findById(request.studentId())
                         .orElseThrow(
-                                () -> new StudentNotFoundException(
+                                () -> new BusinessException(STUDENT_NOT_FOUND,
                                         request.studentId()
                                 )
                         );
@@ -106,7 +97,7 @@ public class AdmissionService {
                 dormitoryTermRepository
                         .findById(request.dormitoryTermId())
                         .orElseThrow(
-                                () -> new DormitoryTermNotFoundException(
+                                () -> new BusinessException(DORMITORY_TERM_NOT_FOUND,
                                         request.dormitoryTermId()
                                 )
                         );
@@ -119,7 +110,7 @@ public class AdmissionService {
                         );
 
         if (admissionExists) {
-            throw new AdmissionAlreadyExistsException(
+            throw new BusinessException(ADMISSION_ALREADY_EXISTS,
                     student.getId(),
                     dormitoryTerm.getId()
             );
@@ -129,7 +120,7 @@ public class AdmissionService {
                 dormitoryRepository
                         .findById(request.dormitoryId())
                         .orElseThrow(
-                                () -> new DormitoryNotFoundException(
+                                () -> new BusinessException(DORMITORY_NOT_FOUND,
                                         request.dormitoryId()
                                 )
                         );
@@ -141,7 +132,7 @@ public class AdmissionService {
         );
 
         if (!dormitory.isActive()) {
-            throw new InactiveDormitoryException(
+            throw new BusinessException(INACTIVE_DORMITORY,
                     dormitory.getId()
             );
         }
@@ -231,7 +222,7 @@ public class AdmissionService {
                 );
 
         if (!studentRepository.existsById(studentId)) {
-            throw new StudentNotFoundException(
+            throw new BusinessException(STUDENT_NOT_FOUND,
                     studentId
             );
         }
@@ -322,7 +313,7 @@ public class AdmissionService {
         DormitoryTerm activeTerm = findActiveTerm();
         LinkedHashSet<Long> uniqueIds = new LinkedHashSet<>(request.admissionIds());
         if (uniqueIds.isEmpty()) {
-            throw new InvalidAdmissionRequestException("En az bir kabul kaydı seçilmelidir.");
+            throw new BusinessException(INVALID_ADMISSION_REQUEST, "En az bir kabul kaydı seçilmelidir.");
         }
 
         Map<Long, Admission> admissionsById = admissionRepository.findAllById(uniqueIds)
@@ -332,11 +323,10 @@ public class AdmissionService {
         for (Long admissionId : uniqueIds) {
             Admission admission = admissionsById.get(admissionId);
             if (admission == null) {
-                throw new AdmissionNotFoundException(admissionId);
+                throw new BusinessException(ADMISSION_NOT_FOUND, admissionId);
             }
             if (!admission.getDormitoryTerm().getId().equals(activeTerm.getId())) {
-                throw new AdmissionAccessDeniedException(
-                        "Yalnızca aktif döneme ait kabul kayıtları toplu olarak onaylanabilir."
+                throw new BusinessException(ADMISSION_ACCESS_DENIED_MESSAGE, "Yalnızca aktif döneme ait kabul kayıtları toplu olarak onaylanabilir."
                 );
             }
             validateStatusTransition(admission, AdmissionStatus.APPROVED);
@@ -428,7 +418,7 @@ public class AdmissionService {
 
     private void validatePage(int page, int size) {
         if (page < 0 || size < 1 || size > 100) {
-            throw new InvalidAdmissionRequestException(
+            throw new BusinessException(INVALID_ADMISSION_REQUEST,
                     "Sayfa 0 veya daha büyük, sayfa boyutu 1 ile 100 arasında olmalıdır."
             );
         }
@@ -436,7 +426,7 @@ public class AdmissionService {
 
     private DormitoryTerm findActiveTerm() {
         return dormitoryTermRepository.findByActiveTrue()
-                .orElseThrow(ActiveDormitoryTermNotFoundException::new);
+                .orElseThrow(() -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND));
     }
 
     private AppUser requireGlobalAdmin(String adminEmail) {
@@ -462,7 +452,7 @@ public class AdmissionService {
                         || requestedStatus == AdmissionStatus.REJECTED);
 
         if (!validTransition) {
-            throw new InvalidAdmissionStatusTransitionException(
+            throw new BusinessException(INVALID_ADMISSION_STATUS_TRANSITION,
                     admission.getId(),
                     currentStatus,
                     requestedStatus
@@ -473,7 +463,7 @@ public class AdmissionService {
     private Admission findAdmissionById(Long id) {
         return admissionRepository.findById(id)
                 .orElseThrow(
-                        () -> new AdmissionNotFoundException(id)
+                        () -> new BusinessException(ADMISSION_NOT_FOUND, id)
                 );
     }
 
@@ -555,7 +545,7 @@ public class AdmissionService {
                 && !dormitoryTermRepository
                 .existsById(termId)) {
 
-            throw new DormitoryTermNotFoundException(
+            throw new BusinessException(DORMITORY_TERM_NOT_FOUND,
                     termId
             );
         }
@@ -600,7 +590,7 @@ public class AdmissionService {
                 dormitoryTermRepository
                         .findByActiveTrue()
                         .orElseThrow(
-                                ActiveDormitoryTermNotFoundException::new
+                                () -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND)
                         );
 
         return admissionRepository
@@ -628,7 +618,7 @@ public class AdmissionService {
                 dormitoryTermRepository
                         .findByActiveTrue()
                         .orElseThrow(
-                                ActiveDormitoryTermNotFoundException::new
+                                () -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND)
                         );
 
         Long termId =
@@ -694,7 +684,7 @@ public class AdmissionService {
                 dormitoryTermRepository
                         .findByActiveTrue()
                         .orElseThrow(
-                                ActiveDormitoryTermNotFoundException::new
+                                () -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND)
                         );
 
         Long adminDormitoryId =
@@ -725,17 +715,17 @@ public class AdmissionService {
                                 email
                         )
                         .orElseThrow(
-                                InvalidCredentialsException::new
+                                () -> new BusinessException(INVALID_CREDENTIALS)
                         );
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(
+            throw new BusinessException(USER_IS_NOT_ADMIN,
                     admin.getId()
             );
         }
 
         if (!admin.isActive()) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
 
         return admin;
@@ -757,7 +747,7 @@ public class AdmissionService {
                     admin.getDormitory();
 
             if (dormitory == null) {
-                throw new InvalidAdminConfigurationException(
+                throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                         "Yurt admini için yurt ataması zorunludur."
                 );
             }
@@ -765,7 +755,7 @@ public class AdmissionService {
             return dormitory.getId();
         }
 
-        throw new InvalidAdminConfigurationException(
+        throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                 "Admin kullanıcısının yetki kapsamı geçersizdir."
         );
     }
@@ -801,13 +791,12 @@ public class AdmissionService {
                 targetDormitoryId
         )) {
             if (admissionId != null) {
-                throw new AdmissionAccessDeniedException(
+                throw new BusinessException(ADMISSION_ACCESS_DENIED,
                         admissionId
                 );
             }
 
-            throw new AdmissionAccessDeniedException(
-                    "Bu yurt için kabul kaydı oluşturma yetkiniz bulunmamaktadır."
+            throw new BusinessException(ADMISSION_ACCESS_DENIED_MESSAGE, "Bu yurt için kabul kaydı oluşturma yetkiniz bulunmamaktadır."
             );
         }
     }

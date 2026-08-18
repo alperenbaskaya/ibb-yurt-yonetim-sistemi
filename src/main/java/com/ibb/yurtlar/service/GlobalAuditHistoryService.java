@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.AuditLogPageResponse;
 import com.ibb.yurtlar.dto.AuditLogResponse;
 import com.ibb.yurtlar.entity.AppUser;
@@ -7,10 +11,6 @@ import com.ibb.yurtlar.entity.AuditLog;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.AuditCategory;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.DormitoryNotFoundException;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.InvalidAuditHistoryRequestException;
-import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AuditLogRepository;
 import com.ibb.yurtlar.repository.DormitoryRepository;
@@ -47,12 +47,12 @@ public class GlobalAuditHistoryService {
         validatePage(page, size);
         if (category != AuditCategory.STUDENT_ACTIVITY
                 && category != AuditCategory.REVIEWER_ACTIVITY) {
-            throw new InvalidAuditHistoryRequestException(
+            throw new BusinessException(INVALID_AUDIT_HISTORY_REQUEST,
                     "Yurt operasyonları için yalnızca öğrenci veya değerlendirici işlem kategorisi kullanılabilir."
             );
         }
         if (!dormitoryRepository.existsById(dormitoryId)) {
-            throw new DormitoryNotFoundException(dormitoryId);
+            throw new BusinessException(DORMITORY_NOT_FOUND, dormitoryId);
         }
 
         return toPageResponse(auditLogRepository
@@ -80,11 +80,11 @@ public class GlobalAuditHistoryService {
 
     private void validateGlobalAdmin(String email) {
         AppUser user = appUserRepository.findByNormalizedEmail(email)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
         if (!user.isActive()
                 || user.getRole() != Role.ADMIN
                 || user.getAdminScope() != AdminScope.GLOBAL) {
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Sistem geçmişini yalnızca aktif GLOBAL adminler görüntüleyebilir."
             );
         }
@@ -92,7 +92,7 @@ public class GlobalAuditHistoryService {
 
     private void validatePage(int page, int size) {
         if (page < 0 || size < 1 || size > 100) {
-            throw new InvalidAuditHistoryRequestException(
+            throw new BusinessException(INVALID_AUDIT_HISTORY_REQUEST,
                     "Sayfa 0 veya daha büyük, sayfa boyutu 1 ile 100 arasında olmalıdır."
             );
         }

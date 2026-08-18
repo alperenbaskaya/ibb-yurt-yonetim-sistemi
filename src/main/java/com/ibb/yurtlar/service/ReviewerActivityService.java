@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.AuditLogResponse;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.AuditLog;
@@ -7,9 +11,6 @@ import com.ibb.yurtlar.entity.Dormitory;
 import com.ibb.yurtlar.enums.AuditAction;
 import com.ibb.yurtlar.enums.AuditCategory;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
-import com.ibb.yurtlar.exception.UserIsNotReviewerException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AuditLogRepository;
 import org.springframework.data.domain.PageRequest;
@@ -43,17 +44,17 @@ public class ReviewerActivityService {
     @Transactional(readOnly = true)
     public List<AuditLogResponse> getRecentActivity(String authenticatedEmail) {
         AppUser reviewer = appUserRepository.findByNormalizedEmail(authenticatedEmail)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
         if (reviewer.getRole() != Role.REVIEWER) {
-            throw new UserIsNotReviewerException(reviewer.getId());
+            throw new BusinessException(USER_IS_NOT_REVIEWER, reviewer.getId());
         }
         if (!reviewer.isActive()) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
 
         Dormitory dormitory = reviewer.getDormitory();
         if (dormitory == null) {
-            throw new InvalidUserConfigurationException(
+            throw new BusinessException(INVALID_USER_CONFIGURATION,
                     "Değerlendirici kullanıcısına bir yurt atanmamıştır."
             );
         }

@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.CreateDocumentReviewRequest;
 import com.ibb.yurtlar.dto.DocumentReviewResponse;
 import com.ibb.yurtlar.entity.Admission;
@@ -13,11 +17,6 @@ import com.ibb.yurtlar.enums.StudentDocumentStatus;
 import com.ibb.yurtlar.enums.AuditAction;
 import com.ibb.yurtlar.enums.AuditCategory;
 import com.ibb.yurtlar.enums.AuditEntityType;
-import com.ibb.yurtlar.exception.DocumentNotReadyForReviewException;
-import com.ibb.yurtlar.exception.ReviewCommentRequiredException;
-import com.ibb.yurtlar.exception.StudentDocumentNotFoundException;
-import com.ibb.yurtlar.exception.UserIsNotReviewerException;
-import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DocumentReviewRepository;
 import com.ibb.yurtlar.repository.StudentDocumentRepository;
@@ -94,7 +93,7 @@ public class DocumentReviewService {
                                 request.studentDocumentId()
                         )
                         .orElseThrow(
-                                () -> new StudentDocumentNotFoundException(
+                                () -> new BusinessException(STUDENT_DOCUMENT_NOT_FOUND,
                                         request.studentDocumentId()
                                 )
                         );
@@ -112,7 +111,7 @@ public class DocumentReviewService {
         if (document.getStatus()
                 != StudentDocumentStatus.UPLOADED) {
 
-            throw new DocumentNotReadyForReviewException(
+            throw new BusinessException(DOCUMENT_NOT_READY_FOR_REVIEW,
                     document.getId()
             );
         }
@@ -181,7 +180,7 @@ public class DocumentReviewService {
                 studentDocumentRepository
                         .findById(studentDocumentId)
                         .orElseThrow(
-                                () -> new StudentDocumentNotFoundException(
+                                () -> new BusinessException(STUDENT_DOCUMENT_NOT_FOUND,
                                         studentDocumentId
                                 )
                         );
@@ -249,7 +248,7 @@ public class DocumentReviewService {
                         == DocumentReviewDecision.REVISION_REQUIRED;
 
         if (commentRequired && comment == null) {
-            throw new ReviewCommentRequiredException();
+            throw new BusinessException(REVIEW_COMMENT_REQUIRED);
         }
     }
 
@@ -335,13 +334,13 @@ public class DocumentReviewService {
                 appUserRepository
                         .findById(reviewerId)
                         .orElseThrow(
-                                () -> new UserNotFoundException(
+                                () -> new BusinessException(USER_NOT_FOUND,
                                         reviewerId
                                 )
                         );
 
         if (reviewer.getRole() != Role.REVIEWER) {
-            throw new UserIsNotReviewerException(
+            throw new BusinessException(USER_IS_NOT_REVIEWER,
                     reviewerId
             );
         }
@@ -358,17 +357,17 @@ public class DocumentReviewService {
                                 reviewerEmail
                         )
                         .orElseThrow(
-                                () -> new InvalidCredentialsException()
+                                () -> new BusinessException(INVALID_CREDENTIALS)
                         );
 
         if (reviewer.getRole() != Role.REVIEWER) {
-            throw new UserIsNotReviewerException(
+            throw new BusinessException(USER_IS_NOT_REVIEWER,
                     reviewer.getId()
             );
         }
 
         if (!reviewer.isActive()) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
 
         return reviewer;
@@ -475,7 +474,7 @@ public class DocumentReviewService {
         // atomic with respect to other reviews for the same process.
         Admission lockedAdmission = admissionRepository
                 .findByIdForDocumentCompletionUpdate(admission.getId())
-                .orElseThrow(() -> new AdmissionNotFoundException(admission.getId()));
+                .orElseThrow(() -> new BusinessException(ADMISSION_NOT_FOUND, admission.getId()));
 
         DocumentCompletionResponse completion =
                 studentDocumentService

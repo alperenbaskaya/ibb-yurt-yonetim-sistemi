@@ -1,8 +1,11 @@
 package com.ibb.yurtlar.controller;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.AuditLogPageResponse;
 import com.ibb.yurtlar.enums.AuditCategory;
-import com.ibb.yurtlar.exception.InvalidAuditHistoryRequestException;
 import com.ibb.yurtlar.service.DormitoryAdminAuditHistoryService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -42,7 +45,7 @@ public class DormitoryAdminAuditHistoryController {
         try {
             return AuditCategory.valueOf(value);
         } catch (IllegalArgumentException exception) {
-            throw new InvalidAuditHistoryRequestException(
+            throw new BusinessException(INVALID_AUDIT_HISTORY_REQUEST,
                     "Geçersiz yurt işlem kategorisi."
             );
         }

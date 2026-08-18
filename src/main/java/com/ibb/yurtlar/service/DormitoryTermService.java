@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.CreateDormitoryTermRequest;
 import com.ibb.yurtlar.dto.DormitoryTermResponse;
 import com.ibb.yurtlar.dto.UpdateDormitoryTermRequest;
@@ -9,19 +13,12 @@ import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.enums.AuditAction;
 import com.ibb.yurtlar.enums.AuditEntityType;
-import com.ibb.yurtlar.exception.DormitoryTermAlreadyExistsException;
-import com.ibb.yurtlar.exception.DormitoryTermNotFoundException;
-import com.ibb.yurtlar.exception.InvalidDateRangeException;
 import com.ibb.yurtlar.repository.DormitoryTermRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.ibb.yurtlar.exception.DormitoryTermInUseException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.TermDocumentRequirementRepository;
 import com.ibb.yurtlar.repository.AppUserRepository;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.UserIsNotAdminException;
-import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 
 import java.util.List;
 
@@ -59,7 +56,7 @@ public class DormitoryTermService {
         validateGlobalAdmin(adminEmail);
 
         if (dormitoryTermRepository.existsByName(request.name())) {
-            throw new DormitoryTermAlreadyExistsException(request.name());
+            throw new BusinessException(DORMITORY_TERM_ALREADY_EXISTS, request.name());
         }
 
         validateDates(
@@ -124,7 +121,7 @@ public class DormitoryTermService {
         if (dormitoryTermRepository
                 .existsByNameAndIdNot(request.name(), id)) {
 
-            throw new DormitoryTermAlreadyExistsException(
+            throw new BusinessException(DORMITORY_TERM_ALREADY_EXISTS,
                     request.name()
             );
         }
@@ -165,7 +162,7 @@ public class DormitoryTermService {
     private DormitoryTerm findTermById(Long id) {
         return dormitoryTermRepository.findById(id)
                 .orElseThrow(
-                        () -> new DormitoryTermNotFoundException(id)
+                        () -> new BusinessException(DORMITORY_TERM_NOT_FOUND, id)
                 );
     }
 
@@ -188,7 +185,7 @@ public class DormitoryTermService {
             java.time.LocalDate documentUploadEndDate
     ) {
         if (endDate.isBefore(startDate)) {
-            throw new InvalidDateRangeException(
+            throw new BusinessException(INVALID_DATE_RANGE,
                     "Dönem bitiş tarihi başlangıç tarihinden önce olamaz."
             );
         }
@@ -196,19 +193,19 @@ public class DormitoryTermService {
         if (documentUploadEndDate
                 .isBefore(documentUploadStartDate)) {
 
-            throw new InvalidDateRangeException(
+            throw new BusinessException(INVALID_DATE_RANGE,
                     "Belge yükleme bitiş tarihi başlangıç tarihinden önce olamaz."
             );
         }
 
         if (documentUploadStartDate.isBefore(startDate)) {
-            throw new InvalidDateRangeException(
+            throw new BusinessException(INVALID_DATE_RANGE,
                     "Belge yükleme başlangıç tarihi dönem başlangıcından önce olamaz."
             );
         }
 
         if (documentUploadEndDate.isAfter(endDate)) {
-            throw new InvalidDateRangeException(
+            throw new BusinessException(INVALID_DATE_RANGE,
                     "Belge yükleme bitiş tarihi dönem bitişinden sonra olamaz."
             );
         }
@@ -242,7 +239,7 @@ public class DormitoryTermService {
                         .existsByDormitoryTerm_Id(id);
 
         if (hasAdmissions || hasDocumentRequirements) {
-            throw new DormitoryTermInUseException(id);
+            throw new BusinessException(DORMITORY_TERM_IN_USE, id);
         }
 
         dormitoryTermRepository.delete(term);
@@ -292,14 +289,14 @@ public class DormitoryTermService {
     private void validateGlobalAdmin(String email) {
         AppUser admin = appUserRepository
                 .findByNormalizedEmail(email)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(admin.getId());
+            throw new BusinessException(USER_IS_NOT_ADMIN, admin.getId());
         }
 
         if (admin.getAdminScope() != AdminScope.GLOBAL) {
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Bu işlem yalnızca GLOBAL adminler tarafından yapılabilir."
             );
         }

@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.StudentProcessTimelineItemResponse;
 import com.ibb.yurtlar.dto.StudentProcessTimelineResponse;
 import com.ibb.yurtlar.entity.Admission;
@@ -12,10 +16,6 @@ import com.ibb.yurtlar.enums.AuditAction;
 import com.ibb.yurtlar.enums.AuditEntityType;
 import com.ibb.yurtlar.enums.DocumentReviewDecision;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.ActiveAdmissionNotFoundForCurrentStudentException;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.StudentNotFoundException;
-import com.ibb.yurtlar.exception.UserIsNotStudentException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AuditLogRepository;
@@ -70,19 +70,19 @@ public class StudentProcessTimelineService {
     @Transactional(readOnly = true)
     public StudentProcessTimelineResponse getMyTimeline(String authenticatedEmail) {
         AppUser user = appUserRepository.findByNormalizedEmail(authenticatedEmail)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
         if (user.getRole() != Role.STUDENT) {
-            throw new UserIsNotStudentException(user.getId());
+            throw new BusinessException(USER_IS_NOT_STUDENT, user.getId());
         }
         if (!user.isActive()) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
 
         Student student = studentRepository.findByUserEmail(authenticatedEmail)
-                .orElseThrow(() -> new StudentNotFoundException(null));
+                .orElseThrow(() -> new BusinessException(STUDENT_NOT_FOUND, (Object) null));
         Admission admission = admissionRepository
                 .findByStudent_IdAndDormitoryTerm_ActiveTrue(student.getId())
-                .orElseThrow(ActiveAdmissionNotFoundForCurrentStudentException::new);
+                .orElseThrow(() -> new BusinessException(ACTIVE_ADMISSION_NOT_FOUND_FOR_CURRENT_STUDENT));
         List<StudentDocument> documents = studentDocumentRepository
                 .findAllByAdmissionId(admission.getId());
         Map<Long, StudentDocument> documentsById = documents.stream().collect(

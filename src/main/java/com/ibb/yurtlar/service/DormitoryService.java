@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.CreateDormitoryRequest;
 import com.ibb.yurtlar.dto.DormitoryResponse;
 import com.ibb.yurtlar.dto.UpdateDormitoryRequest;
@@ -7,11 +11,6 @@ import com.ibb.yurtlar.entity.Dormitory;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.DormitoryAlreadyExistsException;
-import com.ibb.yurtlar.exception.DormitoryNotFoundException;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.UserIsNotAdminException;
-import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DormitoryRepository;
 import com.ibb.yurtlar.enums.AuditAction;
@@ -51,7 +50,7 @@ public class DormitoryService {
         if (dormitoryRepository
                 .existsByNameIgnoreCase(normalizedName)) {
 
-            throw new DormitoryAlreadyExistsException(
+            throw new BusinessException(DORMITORY_ALREADY_EXISTS,
                     normalizedName
             );
         }
@@ -122,7 +121,7 @@ public class DormitoryService {
                         );
 
         if (anotherDormitoryUsesName) {
-            throw new DormitoryAlreadyExistsException(
+            throw new BusinessException(DORMITORY_ALREADY_EXISTS,
                     normalizedName
             );
         }
@@ -145,7 +144,7 @@ public class DormitoryService {
         return dormitoryRepository
                 .findById(id)
                 .orElseThrow(
-                        () -> new DormitoryNotFoundException(id)
+                        () -> new BusinessException(DORMITORY_NOT_FOUND, id)
                 );
     }
 
@@ -186,14 +185,14 @@ public class DormitoryService {
     private void validateGlobalAdmin(String email) {
         AppUser admin = appUserRepository
                 .findByNormalizedEmail(email)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(admin.getId());
+            throw new BusinessException(USER_IS_NOT_ADMIN, admin.getId());
         }
 
         if (admin.getAdminScope() != AdminScope.GLOBAL) {
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Bu işlem yalnızca GLOBAL adminler tarafından yapılabilir."
             );
         }

@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.CreateUserRequest;
 import com.ibb.yurtlar.dto.UpdateUserRequest;
 import com.ibb.yurtlar.dto.UserResponse;
@@ -9,20 +13,11 @@ import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.enums.AuditAction;
 import com.ibb.yurtlar.enums.AuditEntityType;
-import com.ibb.yurtlar.exception.DormitoryNotFoundException;
-import com.ibb.yurtlar.exception.EmailAlreadyExistsException;
-import com.ibb.yurtlar.exception.InactiveDormitoryException;
-import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
-import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
-import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DormitoryRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.UserIsNotAdminException;
-import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 
 import java.util.List;
 import java.util.Locale;
@@ -77,7 +72,7 @@ public class AppUserService {
                         normalizedEmail
                 )) {
 
-            throw new EmailAlreadyExistsException(
+            throw new BusinessException(EMAIL_ALREADY_EXISTS,
                     normalizedEmail
             );
         }
@@ -232,7 +227,7 @@ public class AppUserService {
                         );
 
         if (anotherUserUsesEmail) {
-            throw new EmailAlreadyExistsException(
+            throw new BusinessException(EMAIL_ALREADY_EXISTS,
                     normalizedEmail
             );
         }
@@ -319,7 +314,7 @@ public class AppUserService {
             Long dormitoryId
     ) {
         if (adminScope == null) {
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "ADMIN rolündeki kullanıcılar için adminScope zorunludur."
             );
         }
@@ -344,7 +339,7 @@ public class AppUserService {
             Long dormitoryId
     ) {
         if (dormitoryId != null) {
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "GLOBAL admin belirli bir yurda atanamaz. dormitoryId boş olmalıdır."
             );
         }
@@ -361,7 +356,7 @@ public class AppUserService {
             Long dormitoryId
     ) {
         if (dormitoryId == null) {
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "DORMITORY kapsamındaki admin için dormitoryId zorunludur."
             );
         }
@@ -384,13 +379,13 @@ public class AppUserService {
             Long dormitoryId
     ) {
         if (adminScope != null) {
-            throw new InvalidUserConfigurationException(
+            throw new BusinessException(INVALID_USER_CONFIGURATION,
                     "REVIEWER kullanıcısı için adminScope gönderilemez."
             );
         }
 
         if (dormitoryId == null) {
-            throw new InvalidUserConfigurationException(
+            throw new BusinessException(INVALID_USER_CONFIGURATION,
                     "REVIEWER kullanıcısı için dormitoryId zorunludur."
             );
         }
@@ -412,7 +407,7 @@ public class AppUserService {
         if (adminScope != null
                 || dormitoryId != null) {
 
-            throw new InvalidUserConfigurationException(
+            throw new BusinessException(INVALID_USER_CONFIGURATION,
                     "STUDENT kullanıcısı için adminScope ve dormitoryId gönderilemez."
             );
         }
@@ -428,13 +423,13 @@ public class AppUserService {
                 dormitoryRepository
                         .findById(dormitoryId)
                         .orElseThrow(
-                                () -> new DormitoryNotFoundException(
+                                () -> new BusinessException(DORMITORY_NOT_FOUND,
                                         dormitoryId
                                 )
                         );
 
         if (!dormitory.isActive()) {
-            throw new InactiveDormitoryException(
+            throw new BusinessException(INACTIVE_DORMITORY,
                     dormitoryId
             );
         }
@@ -448,7 +443,7 @@ public class AppUserService {
         return appUserRepository
                 .findById(id)
                 .orElseThrow(
-                        () -> new UserNotFoundException(
+                        () -> new BusinessException(USER_NOT_FOUND,
                                 id
                         )
                 );
@@ -502,17 +497,17 @@ public class AppUserService {
                                 email
                         )
                         .orElseThrow(
-                                InvalidCredentialsException::new
+                                () -> new BusinessException(INVALID_CREDENTIALS)
                         );
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(
+            throw new BusinessException(USER_IS_NOT_ADMIN,
                     admin.getId()
             );
         }
 
         if (!admin.isActive()) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
 
         return admin;
@@ -524,7 +519,7 @@ public class AppUserService {
         if (admin.getAdminScope()
                 != AdminScope.DORMITORY) {
 
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "Kullanıcı yurt admini değildir."
             );
         }
@@ -533,7 +528,7 @@ public class AppUserService {
                 admin.getDormitory();
 
         if (dormitory == null) {
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "Yurt admini için yurt ataması zorunludur."
             );
         }
@@ -559,13 +554,13 @@ public class AppUserService {
         if (request.role()
                 != Role.REVIEWER) {
 
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Yurt admini yalnızca REVIEWER kullanıcısı oluşturabilir."
             );
         }
 
         if (request.adminScope() != null) {
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Reviewer kullanıcısı için adminScope gönderilemez."
             );
         }
@@ -577,7 +572,7 @@ public class AppUserService {
                         request.dormitoryId()
                 )) {
 
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Yurt admini yalnızca kendi yurduna reviewer atayabilir."
             );
         }
@@ -601,13 +596,13 @@ public class AppUserService {
         if (request.role()
                 != Role.REVIEWER) {
 
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Yurt admini kullanıcı rolünü REVIEWER dışında değiştiremez."
             );
         }
 
         if (request.adminScope() != null) {
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Reviewer kullanıcısı için adminScope gönderilemez."
             );
         }
@@ -619,7 +614,7 @@ public class AppUserService {
                         request.dormitoryId()
                 )) {
 
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Yurt admini reviewer kullanıcısını başka yurda taşıyamaz."
             );
         }
@@ -654,7 +649,7 @@ public class AppUserService {
                         );
 
         if (!allowed) {
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Bu kullanıcıyı görüntüleme veya güncelleme yetkiniz bulunmamaktadır."
             );
         }

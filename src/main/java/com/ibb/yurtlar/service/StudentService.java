@@ -1,15 +1,14 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.CreateStudentRequest;
 import com.ibb.yurtlar.dto.StudentResponse;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.Student;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.IdentityNumberAlreadyExistsException;
-import com.ibb.yurtlar.exception.StudentNotFoundException;
-import com.ibb.yurtlar.exception.StudentProfileAlreadyExistsException;
-import com.ibb.yurtlar.exception.UserIsNotStudentException;
-import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.StudentRepository;
 import com.ibb.yurtlar.repository.DormitoryTermRepository;
@@ -17,11 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.ibb.yurtlar.entity.Dormitory;
 import com.ibb.yurtlar.enums.AdminScope;
-import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.StudentManagementAccessDeniedException;
-import com.ibb.yurtlar.exception.UserIsNotAdminException;
-import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
 
 import java.util.List;
 
@@ -55,8 +49,7 @@ public class StudentService {
         if (admin.getAdminScope()
                 != AdminScope.GLOBAL) {
 
-            throw new StudentManagementAccessDeniedException(
-                    "Yalnızca GLOBAL admin öğrenci profili oluşturabilir."
+            throw new BusinessException(STUDENT_MANAGEMENT_ACCESS_DENIED_MESSAGE, "Yalnızca GLOBAL admin öğrenci profili oluşturabilir."
             );
         }
 
@@ -66,13 +59,13 @@ public class StudentService {
                                 request.userId()
                         )
                         .orElseThrow(
-                                () -> new UserNotFoundException(
+                                () -> new BusinessException(USER_NOT_FOUND,
                                         request.userId()
                                 )
                         );
 
         if (user.getRole() != Role.STUDENT) {
-            throw new UserIsNotStudentException(
+            throw new BusinessException(USER_IS_NOT_STUDENT,
                     user.getId()
             );
         }
@@ -82,7 +75,7 @@ public class StudentService {
                         user.getId()
                 )) {
 
-            throw new StudentProfileAlreadyExistsException(
+            throw new BusinessException(STUDENT_PROFILE_ALREADY_EXISTS,
                     user.getId()
             );
         }
@@ -96,7 +89,7 @@ public class StudentService {
                         identityNumber
                 )) {
 
-            throw new IdentityNumberAlreadyExistsException(
+            throw new BusinessException(IDENTITY_NUMBER_ALREADY_EXISTS,
                     identityNumber
             );
         }
@@ -164,7 +157,7 @@ public class StudentService {
 
         Long activeTermId = dormitoryTermRepository
                 .findByActiveTrue()
-                .orElseThrow(ActiveDormitoryTermNotFoundException::new)
+                .orElseThrow(() -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND))
                 .getId();
 
         return studentRepository
@@ -185,14 +178,13 @@ public class StudentService {
         AppUser admin = findAuthenticatedAdmin(adminEmail);
 
         if (admin.getAdminScope() != AdminScope.GLOBAL) {
-            throw new StudentManagementAccessDeniedException(
-                    "Yalnızca GLOBAL admin yurt bazlı öğrenci listesini görüntüleyebilir."
+            throw new BusinessException(STUDENT_MANAGEMENT_ACCESS_DENIED_MESSAGE, "Yalnızca GLOBAL admin yurt bazlı öğrenci listesini görüntüleyebilir."
             );
         }
 
         Long activeTermId = dormitoryTermRepository
                 .findByActiveTrue()
-                .orElseThrow(ActiveDormitoryTermNotFoundException::new)
+                .orElseThrow(() -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND))
                 .getId();
 
         return studentRepository
@@ -237,7 +229,7 @@ public class StudentService {
                                     adminDormitory.getId()
                             )
                             .orElseThrow(
-                                    () -> new StudentManagementAccessDeniedException(
+                                    () -> new BusinessException(STUDENT_MANAGEMENT_ACCESS_DENIED,
                                             id
                                     )
                             );
@@ -251,7 +243,7 @@ public class StudentService {
     private Student findStudentById(Long id) {
         return studentRepository.findById(id)
                 .orElseThrow(
-                        () -> new StudentNotFoundException(id)
+                        () -> new BusinessException(STUDENT_NOT_FOUND, id)
                 );
     }
 
@@ -281,17 +273,17 @@ public class StudentService {
                                 email
                         )
                         .orElseThrow(
-                                InvalidCredentialsException::new
+                                () -> new BusinessException(INVALID_CREDENTIALS)
                         );
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(
+            throw new BusinessException(USER_IS_NOT_ADMIN,
                     admin.getId()
             );
         }
 
         if (!admin.isActive()) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
 
         return admin;
@@ -303,7 +295,7 @@ public class StudentService {
         if (admin.getAdminScope()
                 != AdminScope.DORMITORY) {
 
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "Kullanıcı yurt admini değildir."
             );
         }
@@ -312,7 +304,7 @@ public class StudentService {
                 admin.getDormitory();
 
         if (dormitory == null) {
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "Yurt admini için yurt ataması zorunludur."
             );
         }

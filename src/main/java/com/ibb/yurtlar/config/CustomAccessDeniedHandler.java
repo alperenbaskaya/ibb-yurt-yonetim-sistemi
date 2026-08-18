@@ -1,6 +1,6 @@
 package com.ibb.yurtlar.config;
 
-import com.ibb.yurtlar.exception.ApiError;
+import com.ibb.yurtlar.exception.dto.ErrorResponse;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -33,11 +33,12 @@ public class CustomAccessDeniedHandler
             AccessDeniedException accessDeniedException
     ) throws IOException, ServletException {
 
-        ApiError apiError =
-                new ApiError(
+        ErrorResponse errorResponse =
+                new ErrorResponse(
                         LocalDateTime.now(),
                         HttpStatus.FORBIDDEN.value(),
                         HttpStatus.FORBIDDEN.getReasonPhrase(),
+                        "ACCESS_DENIED",
                         "Bu işlem için yetkiniz bulunmamaktadır.",
                         request.getRequestURI(),
                         null
@@ -57,7 +58,7 @@ public class CustomAccessDeniedHandler
 
         objectMapper.writeValue(
                 response.getOutputStream(),
-                apiError
+                errorResponse
         );
     }
 }

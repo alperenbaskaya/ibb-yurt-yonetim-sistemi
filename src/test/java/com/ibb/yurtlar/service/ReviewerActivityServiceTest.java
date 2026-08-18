@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.AuditLogResponse;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.AuditLog;
@@ -8,8 +12,6 @@ import com.ibb.yurtlar.enums.AuditAction;
 import com.ibb.yurtlar.enums.AuditCategory;
 import com.ibb.yurtlar.enums.AuditEntityType;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
-import com.ibb.yurtlar.exception.UserIsNotReviewerException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AuditLogRepository;
 import org.junit.jupiter.api.Test;
@@ -119,7 +121,7 @@ class ReviewerActivityServiceTest {
         when(appUserRepository.findByNormalizedEmail("student@example.com"))
                 .thenReturn(Optional.of(student));
 
-        assertThrows(UserIsNotReviewerException.class,
+        assertThrows(BusinessException.class,
                 () -> service.getRecentActivity("student@example.com"));
         verify(projection, never()).readRecent(any(), any(Integer.class));
     }
@@ -130,7 +132,7 @@ class ReviewerActivityServiceTest {
         when(appUserRepository.findByNormalizedEmail("reviewer@example.com"))
                 .thenReturn(Optional.of(reviewer(null)));
 
-        assertThrows(InvalidUserConfigurationException.class,
+        assertThrows(BusinessException.class,
                 () -> service.getRecentActivity("reviewer@example.com"));
         verify(projection, never()).readRecent(any(), any(Integer.class));
     }

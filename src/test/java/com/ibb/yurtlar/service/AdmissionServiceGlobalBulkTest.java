@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.AdmissionPageResponse;
 import com.ibb.yurtlar.dto.BulkApproveAdmissionsRequest;
 import com.ibb.yurtlar.entity.Admission;
@@ -10,10 +14,6 @@ import com.ibb.yurtlar.entity.Student;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.AdmissionStatus;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.AdmissionAccessDeniedException;
-import com.ibb.yurtlar.exception.AdmissionNotFoundException;
-import com.ibb.yurtlar.exception.InvalidAdmissionStatusTransitionException;
-import com.ibb.yurtlar.exception.UserIsNotAdminException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DormitoryRepository;
@@ -140,7 +140,7 @@ class AdmissionServiceGlobalBulkTest {
         Admission existing = admission(1L, activeTerm, AdmissionStatus.PENDING);
         when(admissionRepository.findAllById(any())).thenReturn(List.of(existing));
 
-        assertThrows(AdmissionNotFoundException.class, () -> service.approveSelectedCurrentTermAdmissions(
+        assertThrows(BusinessException.class, () -> service.approveSelectedCurrentTermAdmissions(
                 new BulkApproveAdmissionsRequest(List.of(1L, 99L)), "global@test.local"
         ));
         assertEquals(AdmissionStatus.PENDING, existing.getStatus());
@@ -155,7 +155,7 @@ class AdmissionServiceGlobalBulkTest {
         Admission approved = admission(2L, activeTerm, AdmissionStatus.APPROVED);
         when(admissionRepository.findAllById(any())).thenReturn(List.of(pending, approved));
 
-        assertThrows(InvalidAdmissionStatusTransitionException.class, () -> service.approveSelectedCurrentTermAdmissions(
+        assertThrows(BusinessException.class, () -> service.approveSelectedCurrentTermAdmissions(
                 new BulkApproveAdmissionsRequest(List.of(1L, 2L)), "global@test.local"
         ));
         assertEquals(AdmissionStatus.PENDING, pending.getStatus());
@@ -169,7 +169,7 @@ class AdmissionServiceGlobalBulkTest {
         Admission previous = admission(1L, term(90L, false), AdmissionStatus.PENDING);
         when(admissionRepository.findAllById(any())).thenReturn(List.of(previous));
 
-        assertThrows(AdmissionAccessDeniedException.class, () -> service.approveSelectedCurrentTermAdmissions(
+        assertThrows(BusinessException.class, () -> service.approveSelectedCurrentTermAdmissions(
                 new BulkApproveAdmissionsRequest(List.of(1L)), "global@test.local"
         ));
         assertEquals(AdmissionStatus.PENDING, previous.getStatus());
@@ -179,7 +179,7 @@ class AdmissionServiceGlobalBulkTest {
     void wrongRoleAndDormitoryScopeAreRejected() {
         AppUser student = user(8L, Role.STUDENT, null);
         when(appUserRepository.findByNormalizedEmail("student@test.local")).thenReturn(Optional.of(student));
-        assertThrows(UserIsNotAdminException.class, () -> service.approveAllPendingCurrentTermAdmissions("student@test.local"));
+        assertThrows(BusinessException.class, () -> service.approveAllPendingCurrentTermAdmissions("student@test.local"));
 
         AppUser dormitoryAdmin = user(9L, Role.ADMIN, AdminScope.DORMITORY);
         when(appUserRepository.findByNormalizedEmail("dorm@test.local")).thenReturn(Optional.of(dormitoryAdmin));

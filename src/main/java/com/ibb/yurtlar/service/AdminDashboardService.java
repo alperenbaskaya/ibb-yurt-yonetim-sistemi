@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.AdminDashboardResponse;
 import com.ibb.yurtlar.dto.AdminRecentAdmissionResponse;
 import com.ibb.yurtlar.dto.DormitoryAdminDashboardResponse;
@@ -13,10 +17,6 @@ import com.ibb.yurtlar.enums.AdmissionStatus;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.enums.StudentDocumentStatus;
 import com.ibb.yurtlar.enums.DormitoryAdmissionProcessStatus;
-import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
-import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
-import com.ibb.yurtlar.exception.UserIsNotAdminException;
-import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DormitoryTermRepository;
@@ -91,7 +91,7 @@ public class AdminDashboardService {
                 dormitoryTermRepository
                         .findByActiveTrue()
                         .orElseThrow(
-                                ActiveDormitoryTermNotFoundException::new
+                                () -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND)
                         );
 
         if (admin.getAdminScope() == AdminScope.GLOBAL) {
@@ -108,7 +108,7 @@ public class AdminDashboardService {
             );
         }
 
-        throw new InvalidAdminConfigurationException(
+        throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                 "ADMIN kullanıcısının adminScope bilgisi bulunmamaktadır."
         );
     }
@@ -246,7 +246,7 @@ public class AdminDashboardService {
                 admin.getDormitory();
 
         if (dormitory == null) {
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "DORMITORY kapsamındaki adminin bağlı olduğu yurt bulunmamaktadır."
             );
         }
@@ -393,13 +393,13 @@ public class AdminDashboardService {
                 appUserRepository
                         .findById(adminUserId)
                         .orElseThrow(
-                                () -> new UserNotFoundException(
+                                () -> new BusinessException(USER_NOT_FOUND,
                                         adminUserId
                                 )
                         );
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(
+            throw new BusinessException(USER_IS_NOT_ADMIN,
                     adminUserId
             );
         }
@@ -449,7 +449,7 @@ public class AdminDashboardService {
                         );
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(
+            throw new BusinessException(USER_IS_NOT_ADMIN,
                     admin.getId()
             );
         }
@@ -476,7 +476,7 @@ public class AdminDashboardService {
                         );
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(
+            throw new BusinessException(USER_IS_NOT_ADMIN,
                     admin.getId()
             );
         }
@@ -484,7 +484,7 @@ public class AdminDashboardService {
         if (admin.getAdminScope()
                 != AdminScope.DORMITORY) {
 
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "Bu dashboard yalnızca yurt adminleri "
                             + "tarafından kullanılabilir."
             );
@@ -494,7 +494,7 @@ public class AdminDashboardService {
                 admin.getDormitory();
 
         if (dormitory == null) {
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "Yurt adminine bir yurt atanmamıştır."
             );
         }
@@ -503,7 +503,7 @@ public class AdminDashboardService {
                 dormitoryTermRepository
                         .findByActiveTrue()
                         .orElseThrow(
-                                ActiveDormitoryTermNotFoundException::new
+                                () -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND)
                         );
 
         Long dormitoryId =
@@ -645,7 +645,7 @@ public class AdminDashboardService {
                         );
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(
+            throw new BusinessException(USER_IS_NOT_ADMIN,
                     admin.getId()
             );
         }
@@ -653,7 +653,7 @@ public class AdminDashboardService {
         if (admin.getAdminScope()
                 != AdminScope.GLOBAL) {
 
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "Bu dashboard yalnızca GLOBAL adminler "
                             + "tarafından kullanılabilir."
             );
@@ -663,7 +663,7 @@ public class AdminDashboardService {
                 dormitoryTermRepository
                         .findByActiveTrue()
                         .orElseThrow(
-                                ActiveDormitoryTermNotFoundException::new
+                                () -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND)
                         );
 
         Long activeTermId =

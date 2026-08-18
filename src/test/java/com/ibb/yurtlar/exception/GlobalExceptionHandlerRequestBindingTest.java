@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.exception;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.controller.GlobalAuditHistoryController;
 import com.ibb.yurtlar.service.GlobalAuditHistoryService;
 import org.junit.jupiter.api.BeforeEach;
@@ -94,7 +98,7 @@ class GlobalExceptionHandlerRequestBindingTest {
 
         @GetMapping("/test/invalid-history")
         void invalidHistory() {
-            throw new InvalidAuditHistoryRequestException(
+            throw new BusinessException(INVALID_AUDIT_HISTORY_REQUEST,
                     "Bu kategori yurt operasyon geçmişi için desteklenmiyor."
             );
         }

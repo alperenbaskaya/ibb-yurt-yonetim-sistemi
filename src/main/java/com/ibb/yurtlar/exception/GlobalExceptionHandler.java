@@ -1,16 +1,18 @@
 package com.ibb.yurtlar.exception;
 
+import com.ibb.yurtlar.exception.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.http.converter.HttpMessageNotReadableException;
-import com.ibb.yurtlar.exception.ActiveAdmissionNotFoundException;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -19,182 +21,40 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiError> handleMethodArgumentTypeMismatch(
-            MethodArgumentTypeMismatchException exception,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity.badRequest().body(createApiError(
-                HttpStatus.BAD_REQUEST,
-                "Geçersiz istek parametresi: " + exception.getName(),
-                request.getRequestURI(),
-                null
-        ));
-    }
+    private static final Logger log =
+            LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ApiError> handleMissingServletRequestParameter(
-            MissingServletRequestParameterException exception,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity.badRequest().body(createApiError(
-                HttpStatus.BAD_REQUEST,
-                "Zorunlu istek parametresi eksik: "
-                        + exception.getParameterName(),
-                request.getRequestURI(),
-                null
-        ));
-    }
 
-    @ExceptionHandler(InvalidAuditHistoryRequestException.class)
-    public ResponseEntity<ApiError> handleInvalidAuditHistoryRequest(
-            InvalidAuditHistoryRequestException exception,
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessException(
+            BusinessException exception,
             HttpServletRequest request
     ) {
-        return ResponseEntity.badRequest().body(createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        ));
-    }
+        HttpStatus status =
+                exception.getHttpStatus();
 
-    @ExceptionHandler(InvalidAdmissionRequestException.class)
-    public ResponseEntity<ApiError> handleInvalidAdmissionRequest(
-            InvalidAdmissionRequestException exception,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity.badRequest().body(createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        ));
-    }
-
-    @ExceptionHandler(InvalidNotificationPageRequestException.class)
-    public ResponseEntity<ApiError> handleInvalidNotificationPageRequest(
-            InvalidNotificationPageRequestException exception,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity.badRequest().body(createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        ));
-    }
-
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiError> handleAccessDenied(
-            AccessDeniedException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.FORBIDDEN,
-                "Bu işlem için yetkiniz bulunmamaktadır.",
-                request.getRequestURI(),
-                null
-        );
+        ErrorResponse response =
+                createErrorResponse(
+                        status,
+                        exception.getCode(),
+                        exception.getMessage(),
+                        request.getRequestURI(),
+                        null
+                );
 
         return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(apiError);
+                .status(status)
+                .body(response);
     }
 
-    @ExceptionHandler(NotificationNotFoundException.class)
-    public ResponseEntity<ApiError> handleNotificationNotFound(
-            NotificationNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(InvalidDocumentReplacementStateException.class)
-    public ResponseEntity<ApiError>
-    handleInvalidDocumentReplacementState(
-            InvalidDocumentReplacementStateException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(InvalidAdmissionStatusTransitionException.class)
-    public ResponseEntity<ApiError>
-    handleInvalidAdmissionStatusTransition(
-            InvalidAdmissionStatusTransitionException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(DormitoryTermAlreadyExistsException.class)
-    public ResponseEntity<ApiError> handleDormitoryTermAlreadyExists(
-            DormitoryTermAlreadyExistsException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(InvalidDateRangeException.class)
-    public ResponseEntity<ApiError> handleInvalidDateRange(
-            InvalidDateRangeException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
-    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError> handleValidationErrors(
+    public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException exception,
             HttpServletRequest request
     ) {
-        Map<String, String> validationErrors = new LinkedHashMap<>();
+        Map<String, String> validationErrors =
+                new LinkedHashMap<>();
 
         exception.getBindingResult()
                 .getFieldErrors()
@@ -205,791 +65,141 @@ public class GlobalExceptionHandler {
                         )
                 );
 
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                "Gönderilen bilgiler doğrulanamadı.",
-                request.getRequestURI(),
-                validationErrors
-        );
+        ErrorResponse response =
+                createErrorResponse(
+                        HttpStatus.BAD_REQUEST,
+                        "VALIDATION_ERROR",
+                        "Gönderilen bilgiler doğrulanamadı.",
+                        request.getRequestURI(),
+                        validationErrors
+                );
 
         return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
+                .badRequest()
+                .body(response);
     }
 
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity
+                .badRequest()
+                .body(
+                        createErrorResponse(
+                                HttpStatus.BAD_REQUEST,
+                                "INVALID_REQUEST_PARAMETER",
+                                "Geçersiz istek parametresi: "
+                                        + exception.getName(),
+                                request.getRequestURI(),
+                                null
+                        )
+                );
+    }
+
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParameter(
+            MissingServletRequestParameterException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity
+                .badRequest()
+                .body(
+                        createErrorResponse(
+                                HttpStatus.BAD_REQUEST,
+                                "MISSING_REQUEST_PARAMETER",
+                                "Zorunlu istek parametresi eksik: "
+                                        + exception.getParameterName(),
+                                request.getRequestURI(),
+                                null
+                        )
+                );
+    }
+
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(
+            HttpMessageNotReadableException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity
+                .badRequest()
+                .body(
+                        createErrorResponse(
+                                HttpStatus.BAD_REQUEST,
+                                "INVALID_REQUEST_BODY",
+                                "İstek gövdesi okunamadı. "
+                                        + "JSON yapısını ve gönderilen alan değerlerini kontrol edin.",
+                                request.getRequestURI(),
+                                null
+                        )
+                );
+    }
+
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+            AccessDeniedException exception,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(
+                        createErrorResponse(
+                                HttpStatus.FORBIDDEN,
+                                "ACCESS_DENIED",
+                                "Bu işlem için yetkiniz bulunmamaktadır.",
+                                request.getRequestURI(),
+                                null
+                        )
+                );
+    }
+
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleUnexpectedException(
+    public ResponseEntity<ErrorResponse> handleUnexpectedException(
             Exception exception,
             HttpServletRequest request
     ) {
-        //exception.printStackTrace();
-        ApiError apiError = createApiError(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                "Beklenmeyen bir hata oluştu.",
+        log.error(
+                "Beklenmeyen hata. method={}, path={}",
+                request.getMethod(),
                 request.getRequestURI(),
-                null
+                exception
         );
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(apiError);
+                .body(
+                        createErrorResponse(
+                                HttpStatus.INTERNAL_SERVER_ERROR,
+                                "INTERNAL_SERVER_ERROR",
+                                "Beklenmeyen bir hata oluştu.",
+                                request.getRequestURI(),
+                                null
+                        )
+                );
     }
 
-    private ApiError createApiError(
+
+    private ErrorResponse createErrorResponse(
             HttpStatus status,
+            String code,
             String message,
             String path,
             Map<String, String> validationErrors
     ) {
-        return new ApiError(
+        return new ErrorResponse(
                 LocalDateTime.now(),
                 status.value(),
                 status.getReasonPhrase(),
+                code,
                 message,
                 path,
                 validationErrors
         );
     }
-
-    @ExceptionHandler(DormitoryTermNotFoundException.class)     //  404
-    public ResponseEntity<ApiError> handleDormitoryTermNotFound(
-            DormitoryTermNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(EmailAlreadyExistsException.class) // e-posta çakışması
-    public ResponseEntity<ApiError> handleEmailAlreadyExists(
-            EmailAlreadyExistsException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(UserNotFoundException.class) // kullanıcı bulunamadı
-    public ResponseEntity<ApiError> handleUserNotFound(
-            UserNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiError> handleHttpMessageNotReadable(
-            HttpMessageNotReadableException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                "İstek gövdesi okunamadı. JSON yapısını ve gönderilen alan değerlerini kontrol edin.",
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            IdentityNumberAlreadyExistsException.class
-    )
-    public ResponseEntity<ApiError> handleIdentityNumberAlreadyExists(
-            IdentityNumberAlreadyExistsException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            StudentProfileAlreadyExistsException.class
-    )
-    public ResponseEntity<ApiError> handleStudentProfileAlreadyExists(
-            StudentProfileAlreadyExistsException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(UserIsNotStudentException.class)
-    public ResponseEntity<ApiError> handleUserIsNotStudent(
-            UserIsNotStudentException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(StudentNotFoundException.class)
-    public ResponseEntity<ApiError> handleStudentNotFound(
-            StudentNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(AdmissionAlreadyExistsException.class)
-    public ResponseEntity<ApiError> handleAdmissionAlreadyExists(
-            AdmissionAlreadyExistsException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(AdmissionNotFoundException.class)
-    public ResponseEntity<ApiError> handleAdmissionNotFound(
-            AdmissionNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            DocumentTypeAlreadyExistsException.class
-    )
-    public ResponseEntity<ApiError> handleDocumentTypeAlreadyExists(
-            DocumentTypeAlreadyExistsException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            DocumentTypeNotFoundException.class
-    )
-    public ResponseEntity<ApiError> handleDocumentTypeNotFound(
-            DocumentTypeNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            TermDocumentRequirementAlreadyExistsException.class
-    )
-    public ResponseEntity<ApiError>
-    handleTermDocumentRequirementAlreadyExists(
-            TermDocumentRequirementAlreadyExistsException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            InactiveDocumentTypeException.class
-    )
-    public ResponseEntity<ApiError> handleInactiveDocumentType(
-            InactiveDocumentTypeException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-
-    //ADMISSION ONAYLI DEĞİLSE
-    @ExceptionHandler(AdmissionNotApprovedException.class)
-    public ResponseEntity<ApiError> handleAdmissionNotApproved(
-            AdmissionNotApprovedException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-
-    //DÖNEM AKTİF DEĞİLSE
-    @ExceptionHandler(InactiveDormitoryTermException.class)
-    public ResponseEntity<ApiError> handleInactiveDormitoryTerm(
-            InactiveDormitoryTermException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(UserIsNotReviewerException.class)
-    public ResponseEntity<ApiError> handleUserIsNotReviewer(
-            UserIsNotReviewerException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(DocumentNotReadyForReviewException.class)
-    public ResponseEntity<ApiError> handleDocumentNotReadyForReview(
-            DocumentNotReadyForReviewException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(ReviewCommentRequiredException.class)
-    public ResponseEntity<ApiError> handleReviewCommentRequired(
-            ReviewCommentRequiredException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
-    }
-
-
-    //YÜKLEME DÖNEMİ KAPALIYSA
-    @ExceptionHandler(DocumentUploadClosedException.class)
-    public ResponseEntity<ApiError> handleDocumentUploadClosed(
-            DocumentUploadClosedException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-
-    //BELGE O DÖENM İÇİN TANINMLI DEĞİLSE
-    @ExceptionHandler(DocumentNotRequiredForTermException.class)
-    public ResponseEntity<ApiError>
-    handleDocumentNotRequiredForTerm(
-            DocumentNotRequiredForTermException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
-    }
-
-
-    //DOSYA BOYUTU GEÇERSİZSE
-    @ExceptionHandler(InvalidFileSizeException.class)
-    public ResponseEntity<ApiError> handleInvalidFileSize(
-            InvalidFileSizeException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
-    }
-
-
-    //BOŞ DOSYA VE GEÇERSİZ TÜR
-    @ExceptionHandler({
-            EmptyFileException.class,
-            InvalidFileTypeException.class
-    })
-    public ResponseEntity<ApiError> handleInvalidFile(
-            RuntimeException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
-    }
-
-
-    //STUDENT DOCUMENT BULUNAMAZSA
-    @ExceptionHandler(StudentDocumentNotFoundException.class)
-    public ResponseEntity<ApiError> handleStudentDocumentNotFound(
-            StudentDocumentNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(DormitoryTermInUseException.class)
-    public ResponseEntity<ApiError> handleDormitoryTermInUse(
-            DormitoryTermInUseException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            ActiveDormitoryTermNotFoundException.class
-    )
-    public ResponseEntity<ApiError>
-    handleActiveDormitoryTermNotFound(
-            ActiveDormitoryTermNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(ActiveAdmissionNotFoundException.class)
-    public ResponseEntity<ApiError>
-    handleActiveAdmissionNotFound(
-            ActiveAdmissionNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(DormitoryAlreadyExistsException.class)
-    public ResponseEntity<ApiError> handleDormitoryAlreadyExists(
-            DormitoryAlreadyExistsException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(DormitoryNotFoundException.class)
-    public ResponseEntity<ApiError> handleDormitoryNotFound(
-            DormitoryNotFoundException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            InvalidAdminConfigurationException.class
-    )
-    public ResponseEntity<ApiError>
-    handleInvalidAdminConfiguration(
-            InvalidAdminConfigurationException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(InactiveDormitoryException.class)
-    public ResponseEntity<ApiError>
-    handleInactiveDormitory(
-            InactiveDormitoryException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.CONFLICT,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(UserIsNotAdminException.class)
-    public ResponseEntity<ApiError> handleUserIsNotAdmin(
-            UserIsNotAdminException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ApiError> handleInvalidCredentials(
-            InvalidCredentialsException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.UNAUTHORIZED,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body(apiError);
-    }
-
-
-    @ExceptionHandler(
-            InvalidUserConfigurationException.class
-    )
-    public ResponseEntity<ApiError>
-    handleInvalidUserConfiguration(
-            InvalidUserConfigurationException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            ReviewerDormitoryAccessDeniedException.class
-    )
-    public ResponseEntity<ApiError>
-    handleReviewerDormitoryAccessDenied(
-            ReviewerDormitoryAccessDeniedException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.FORBIDDEN,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            ActiveAdmissionNotFoundForCurrentStudentException.class
-    )
-    public ResponseEntity<ApiError>
-    handleActiveAdmissionNotFoundForCurrentStudent(
-            ActiveAdmissionNotFoundForCurrentStudentException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            StudentDocumentAccessDeniedException.class
-    )
-    public ResponseEntity<ApiError>
-    handleStudentDocumentAccessDenied(
-            StudentDocumentAccessDeniedException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.FORBIDDEN,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            AdmissionAccessDeniedException.class
-    )
-    public ResponseEntity<ApiError>
-    handleAdmissionAccessDenied(
-            AdmissionAccessDeniedException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.FORBIDDEN,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            UserManagementAccessDeniedException.class
-    )
-    public ResponseEntity<ApiError>
-    handleUserManagementAccessDenied(
-            UserManagementAccessDeniedException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.FORBIDDEN,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(apiError);
-    }
-
-    @ExceptionHandler(
-            StudentManagementAccessDeniedException.class
-    )
-    public ResponseEntity<ApiError>
-    handleStudentManagementAccessDenied(
-            StudentManagementAccessDeniedException exception,
-            HttpServletRequest request
-    ) {
-        ApiError apiError = createApiError(
-                HttpStatus.FORBIDDEN,
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(apiError);
-    }
-
 }

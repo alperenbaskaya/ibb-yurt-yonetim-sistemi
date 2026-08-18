@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.DocumentReviewResponse;
 import com.ibb.yurtlar.dto.DormitoryStudentProgressResponse;
 import com.ibb.yurtlar.dto.PendingDocumentTypeCountResponse;
@@ -10,10 +14,6 @@ import com.ibb.yurtlar.entity.Dormitory;
 import com.ibb.yurtlar.entity.DormitoryTerm;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.enums.StudentDocumentStatus;
-import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
-import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
-import com.ibb.yurtlar.exception.UserIsNotReviewerException;
-import com.ibb.yurtlar.exception.UserNotFoundException;
 import com.ibb.yurtlar.mapper.StudentDocumentMapper;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DormitoryTermRepository;
@@ -92,7 +92,7 @@ public class ReviewerDashboardService {
                 dormitoryTermRepository
                         .findByActiveTrue()
                         .orElseThrow(
-                                ActiveDormitoryTermNotFoundException::new
+                                () -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND)
                         );
 
         Long dormitoryId =
@@ -207,7 +207,7 @@ public class ReviewerDashboardService {
                         );
 
         if (reviewer.getRole() != Role.REVIEWER) {
-            throw new UserIsNotReviewerException(
+            throw new BusinessException(USER_IS_NOT_REVIEWER,
                     reviewer.getId()
             );
         }
@@ -237,13 +237,13 @@ public class ReviewerDashboardService {
                                 reviewerId
                         )
                         .orElseThrow(
-                                () -> new UserNotFoundException(
+                                () -> new BusinessException(USER_NOT_FOUND,
                                         reviewerId
                                 )
                         );
 
         if (reviewer.getRole() != Role.REVIEWER) {
-            throw new UserIsNotReviewerException(
+            throw new BusinessException(USER_IS_NOT_REVIEWER,
                     reviewerId
             );
         }
@@ -258,7 +258,7 @@ public class ReviewerDashboardService {
                 reviewer.getDormitory();
 
         if (dormitory == null) {
-            throw new InvalidUserConfigurationException(
+            throw new BusinessException(INVALID_USER_CONFIGURATION,
                     "Reviewer kullanıcısına bir yurt atanmamıştır."
             );
         }
