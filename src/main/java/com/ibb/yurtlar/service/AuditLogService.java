@@ -7,25 +7,33 @@ import com.ibb.yurtlar.exception.BusinessException;
 import com.ibb.yurtlar.entity.*;
 import com.ibb.yurtlar.enums.*;
 import com.ibb.yurtlar.event.AuditLogRecordedEvent;
+import com.ibb.yurtlar.kafka.event.AuditLogRecordedKafkaEvent;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AuditLogRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Service
 public class AuditLogService {
     private final AuditLogRepository auditLogRepository;
     private final AppUserRepository appUserRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final OutboxEventService outboxEventService;
 
     public AuditLogService(AuditLogRepository auditLogRepository,
                            AppUserRepository appUserRepository,
-                           ApplicationEventPublisher eventPublisher) {
+                           ApplicationEventPublisher eventPublisher,
+                           OutboxEventService outboxEventService) {
         this.auditLogRepository = auditLogRepository;
         this.appUserRepository = appUserRepository;
         this.eventPublisher = eventPublisher;
+        this.outboxEventService = outboxEventService;
     }
 
+    @Transactional
     public void recordStudentEvent(String actorEmail, AuditCategory category,
                                    AuditAction action, AuditEntityType entityType,
                                    Long entityId, String targetLabel,
@@ -35,6 +43,7 @@ public class AuditLogService {
                 student, dormitory, description);
     }
 
+    @Transactional
     public void recordSystemEvent(String actorEmail, AuditAction action,
                                   AuditEntityType entityType, Long entityId,
                                   String targetLabel, Dormitory dormitory,
@@ -43,6 +52,7 @@ public class AuditLogService {
                 entityId, targetLabel, null, dormitory, description);
     }
 
+    @Transactional
     public void recordDocumentProcessCompletedIfAbsent(
             String actorEmail, Admission admission, String description) {
         if (auditLogRepository.existsByActionAndEntityTypeAndEntityId(
@@ -76,6 +86,28 @@ public class AuditLogService {
                 category, action, entityType, entityId,
                 targetLabel, description
         ));
+
+        String eventId = UUID.randomUUID().toString();
+        AuditLogRecordedKafkaEvent kafkaEvent = new AuditLogRecordedKafkaEvent(
+                eventId, "AUDIT_LOG_RECORDED", savedAuditLog.getId(),
+                savedAuditLog.getActorUserId(), savedAuditLog.getActorName(),
+                savedAuditLog.getActorRole(), savedAuditLog.getSubjectStudentId(),
+                savedAuditLog.getSubjectStudentName(), savedAuditLog.getDormitoryId(),
+                savedAuditLog.getDormitoryName(), savedAuditLog.getCategory(),
+                savedAuditLog.getAction(), savedAuditLog.getEntityType(),
+                savedAuditLog.getEntityId(), savedAuditLog.getTargetLabel(),
+                savedAuditLog.getDescription(), savedAuditLog.getCreatedAt(), 1
+        );
+        outboxEventService.recordPending(
+                eventId,
+                "AUDIT_LOG_RECORDED",
+                "AUDIT_LOG",
+                savedAuditLog.getId(),
+                "yurtlar-audit-log-events",
+                "audit-log-" + savedAuditLog.getId(),
+                kafkaEvent
+        );
+
         eventPublisher.publishEvent(new AuditLogRecordedEvent(
                 savedAuditLog.getId(), savedAuditLog.getActorUserId(),
                 savedAuditLog.getActorName(), savedAuditLog.getActorRole(),
