@@ -16,4 +16,13 @@ public class AuditLogKafkaTopicConfig {
                 .replicas(1)
                 .build();
     }
+
+    @Bean
+    public NewTopic auditLogEventsDltTopic() {
+        return TopicBuilder
+                .name("yurtlar-audit-log-events.DLT")
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
 }
