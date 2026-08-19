@@ -13,6 +13,8 @@ import com.ibb.yurtlar.enums.AuditCategory;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AuditLogRepository;
+import com.ibb.yurtlar.search.audit.AuditLogSearchCriteria;
+import com.ibb.yurtlar.search.audit.AuditLogSearchService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -22,13 +24,23 @@ import org.springframework.transaction.annotation.Transactional;
 public class DormitoryAdminAuditHistoryService {
     private final AuditLogRepository auditLogRepository;
     private final AppUserRepository appUserRepository;
+    private final AuditLogSearchService auditLogSearchService;
 
     public DormitoryAdminAuditHistoryService(
             AuditLogRepository auditLogRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            AuditLogSearchService auditLogSearchService
     ) {
         this.auditLogRepository = auditLogRepository;
         this.appUserRepository = appUserRepository;
+        this.auditLogSearchService = auditLogSearchService;
+    }
+
+    @Transactional(readOnly = true)
+    public AuditLogPageResponse searchOwnDormitory(
+            AuditLogSearchCriteria criteria, String authenticatedEmail) {
+        AppUser admin = validateDormitoryAdmin(authenticatedEmail);
+        return auditLogSearchService.search(criteria, admin.getDormitory().getId());
     }
 
     @Transactional(readOnly = true)

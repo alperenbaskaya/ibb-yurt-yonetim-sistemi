@@ -311,6 +311,11 @@ public enum BusinessExceptionReason {
     INVALID_AUDIT_HISTORY_REQUEST(
             "%s",
             HttpStatus.BAD_REQUEST
+    ),
+
+    AUDIT_SEARCH_UNAVAILABLE(
+            "Denetim arama servisi şu anda kullanılamıyor.",
+            HttpStatus.SERVICE_UNAVAILABLE
     );
 
 

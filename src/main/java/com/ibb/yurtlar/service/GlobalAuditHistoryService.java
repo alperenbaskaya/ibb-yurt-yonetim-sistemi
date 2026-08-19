@@ -6,6 +6,8 @@ import com.ibb.yurtlar.exception.BusinessException;
 
 import com.ibb.yurtlar.dto.AuditLogPageResponse;
 import com.ibb.yurtlar.dto.AuditLogResponse;
+import com.ibb.yurtlar.dto.AuditLogAnalyticsResponse;
+import com.ibb.yurtlar.dto.AuditLogReindexResponse;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.AuditLog;
 import com.ibb.yurtlar.enums.AdminScope;
@@ -14,6 +16,9 @@ import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AuditLogRepository;
 import com.ibb.yurtlar.repository.DormitoryRepository;
+import com.ibb.yurtlar.search.audit.AuditLogReindexService;
+import com.ibb.yurtlar.search.audit.AuditLogSearchCriteria;
+import com.ibb.yurtlar.search.audit.AuditLogSearchService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -24,15 +29,38 @@ public class GlobalAuditHistoryService {
     private final AuditLogRepository auditLogRepository;
     private final AppUserRepository appUserRepository;
     private final DormitoryRepository dormitoryRepository;
+    private final AuditLogSearchService auditLogSearchService;
+    private final AuditLogReindexService auditLogReindexService;
 
     public GlobalAuditHistoryService(
             AuditLogRepository auditLogRepository,
             AppUserRepository appUserRepository,
-            DormitoryRepository dormitoryRepository
+            DormitoryRepository dormitoryRepository,
+            AuditLogSearchService auditLogSearchService,
+            AuditLogReindexService auditLogReindexService
     ) {
         this.auditLogRepository = auditLogRepository;
         this.appUserRepository = appUserRepository;
         this.dormitoryRepository = dormitoryRepository;
+        this.auditLogSearchService = auditLogSearchService;
+        this.auditLogReindexService = auditLogReindexService;
+    }
+
+    public AuditLogPageResponse search(AuditLogSearchCriteria criteria, String authenticatedEmail) {
+        validateGlobalAdmin(authenticatedEmail);
+        return auditLogSearchService.search(criteria, null);
+    }
+
+    public AuditLogAnalyticsResponse analytics(java.time.LocalDateTime from,
+                                                java.time.LocalDateTime to,
+                                                String authenticatedEmail) {
+        validateGlobalAdmin(authenticatedEmail);
+        return auditLogSearchService.analytics(from, to);
+    }
+
+    public AuditLogReindexResponse reindex(String authenticatedEmail) {
+        validateGlobalAdmin(authenticatedEmail);
+        return auditLogReindexService.reindex();
     }
 
     @Transactional(readOnly = true)

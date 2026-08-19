@@ -5,6 +5,7 @@ import com.ibb.yurtlar.enums.AuditCategory;
 import com.ibb.yurtlar.enums.AuditEntityType;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.kafka.event.AuditLogRecordedKafkaEvent;
+import com.ibb.yurtlar.entity.AuditLog;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.elasticsearch.core.convert.MappingElasticsearchConverter;
 import org.springframework.data.elasticsearch.core.document.Document;
@@ -14,10 +15,32 @@ import java.time.LocalDateTime;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class AuditLogIndexMapperTest {
 
     private final AuditLogIndexMapper mapper = new AuditLogIndexMapper();
+
+    @Test
+    void mapsEveryEntityFieldForBackfill() {
+        AuditLog auditLog = new AuditLog(11L, "Actor Name", Role.REVIEWER,
+                22L, "Student Name", 33L, "Dormitory Name",
+                AuditCategory.STUDENT_ACTIVITY, AuditAction.DOCUMENT_APPROVED,
+                AuditEntityType.STUDENT_DOCUMENT, 44L, "Identity Document",
+                "Document was approved.");
+        ReflectionTestUtils.setField(auditLog, "id", 101L);
+        ReflectionTestUtils.setField(auditLog, "createdAt",
+                LocalDateTime.of(2026, 8, 18, 14, 30));
+
+        AuditLogSearchDocument document = mapper.toDocument(auditLog);
+
+        assertThat(document.getId()).isEqualTo("101");
+        assertThat(document.getAuditLogId()).isEqualTo(101L);
+        assertThat(document.getActorName()).isEqualTo("Actor Name");
+        assertThat(document.getDormitoryId()).isEqualTo(33L);
+        assertThat(document.getDescription()).isEqualTo("Document was approved.");
+        assertThat(document.getSchemaVersion()).isEqualTo(1);
+    }
 
     @Test
     void mapsEveryEventFieldAndUsesAuditLogIdAsDocumentId() {

@@ -14,6 +14,22 @@ import java.util.Collection;
 import java.util.List;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
+    @Query("SELECT COALESCE(MAX(audit.id), 0) FROM AuditLog audit")
+    Long findHighWaterMark();
+
+    @Query("""
+        SELECT audit
+        FROM AuditLog audit
+        WHERE audit.id > :lastId
+          AND audit.id <= :highWaterMark
+        ORDER BY audit.id ASC
+        """)
+    List<AuditLog> findReindexBatch(
+            @Param("lastId") Long lastId,
+            @Param("highWaterMark") Long highWaterMark,
+            Pageable pageable
+    );
+
     boolean existsByActionAndEntityTypeAndEntityId(
             AuditAction action,
             AuditEntityType entityType,
