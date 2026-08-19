@@ -1,0 +1,45 @@
+{
+  "annotations": {"list": []},
+  "description": "Incident workflow answering what failed, when, where, why, and what else was affected.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [{"title": "Open Error Overview", "type": "link", "url": "/d/yurtlar-error-overview/yurtlar-error-overview", "targetBlank": false}],
+  "panels": [
+    {"id":1,"title":"Error Timeline","type":"timeseries","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"h":7,"w":12,"x":0,"y":0},"targets":[{"refId":"A","expr":"sum by (severity) (increase(yurtlar_errors_total{code=~\"$errorCode\",severity=~\"$severity\"}[1m]))","legendFormat":"{{severity}}"}]},
+    {"id":2,"title":"Errors by Code","type":"barchart","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"h":7,"w":6,"x":12,"y":0},"targets":[{"refId":"A","expr":"sum by (code) (increase(yurtlar_errors_total{code=~\"$errorCode\",severity=~\"$severity\"}[5m]))","legendFormat":"{{code}}","instant":true}]},
+    {"id":3,"title":"Errors by Source","type":"barchart","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"h":7,"w":6,"x":18,"y":0},"targets":[{"refId":"A","expr":"sum by (source) (increase(yurtlar_errors_total{code=~\"$errorCode\",severity=~\"$severity\"}[5m]))","legendFormat":"{{source}}","instant":true}]},
+
+    {"id":4,"title":"Failing HTTP Endpoints","type":"table","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"h":7,"w":12,"x":0,"y":7},"targets":[{"refId":"A","expr":"topk(10, sum by (uri, status) (increase(http_server_requests_seconds_count{job=\"yurtlar-backend\",status=~\"4..|5..\"}[5m])))","legendFormat":"{{uri}} / {{status}}","instant":true}],"transformations":[{"id":"labelsToFields","options":{}}]},
+    {"id":5,"title":"HTTP Latency Around Incident","type":"timeseries","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"h":7,"w":12,"x":12,"y":7},"targets":[{"refId":"A","expr":"histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"yurtlar-backend\"}[5m])))","legendFormat":"p95"},{"refId":"B","expr":"histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"yurtlar-backend\"}[5m])))","legendFormat":"p99"}],"fieldConfig":{"defaults":{"unit":"s"},"overrides":[]}},
+
+    {"id":6,"title":"Kafka Consumer Lag","type":"timeseries","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"h":7,"w":8,"x":0,"y":14},"targets":[{"refId":"A","expr":"sum by (consumergroup, topic) (kafka_consumergroup_lag)","legendFormat":"{{consumergroup}} / {{topic}}"}]},
+    {"id":7,"title":"Kafka DLT Activity","type":"timeseries","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"h":7,"w":8,"x":8,"y":14},"targets":[{"refId":"A","expr":"sum by (eventType, consumer) (increase(yurtlar_kafka_dlt_total[5m]))","legendFormat":"{{eventType}} / {{consumer}}"}]},
+    {"id":8,"title":"Outbox Backlog / Oldest Age","type":"timeseries","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"h":7,"w":8,"x":16,"y":14},"targets":[{"refId":"A","expr":"yurtlar_outbox_pending_count","legendFormat":"pending count"},{"refId":"B","expr":"yurtlar_outbox_oldest_pending_age_seconds","legendFormat":"oldest age (seconds)"}]},
+
+    {"id":9,"title":"Elasticsearch Failures","type":"timeseries","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"h":7,"w":12,"x":0,"y":21},"targets":[{"refId":"A","expr":"sum(increase(yurtlar_elasticsearch_index_failure_total[5m]))","legendFormat":"index"},{"refId":"B","expr":"sum(increase(yurtlar_elasticsearch_search_failure_total[5m]))","legendFormat":"search"},{"refId":"C","expr":"sum(increase(yurtlar_elasticsearch_reindex_failure_total[5m]))","legendFormat":"reindex"}]},
+    {"id":10,"title":"Affected Subsystems","type":"timeseries","datasource":{"type":"prometheus","uid":"prometheus"},"gridPos":{"h":7,"w":12,"x":12,"y":21},"targets":[{"refId":"A","expr":"sum(rate(http_server_requests_seconds_count{job=\"yurtlar-backend\",status=~\"5..\"}[1m]))","legendFormat":"HTTP 5xx/s"},{"refId":"B","expr":"sum(increase(yurtlar_kafka_processing_errors_total[5m]))","legendFormat":"Kafka processing errors"},{"refId":"C","expr":"sum(increase(yurtlar_outbox_publish_failure_total[5m]))","legendFormat":"Outbox failures"},{"refId":"D","expr":"sum(increase({__name__=~\"yurtlar_elasticsearch_(index|search|reindex)_failure_total\"}[5m]))","legendFormat":"Elasticsearch failures"}]},
+
+    {"id":11,"title":"Incident Logs","type":"logs","datasource":{"type":"loki","uid":"loki"},"gridPos":{"h":12,"w":18,"x":0,"y":28},"targets":[{"refId":"A","expr":"{service=\"yurtlar\", environment=~\"$environment\", component=~\"$component\"} | json | errorCode=~\"$errorCode\" | errorSeverity=~\"$severity\"","queryType":"range"}],"options":{"showTime":true,"showLabels":true,"wrapLogMessage":true,"enableLogDetails":true,"sortOrder":"Descending","dedupStrategy":"none"}},
+    {"id":12,"title":"Trace Correlation","type":"text","gridPos":{"h":12,"w":6,"x":18,"y":28},"options":{"mode":"markdown","content":"### From this incident to a trace\n\n1. Expand a log entry and copy its structured `traceId`.\n2. Open **Explore → Tempo** and search that trace ID.\n3. From the trace, use **Logs for this span** to return to the correlated Loki window.\n4. In latency panels, enable/click Prometheus exemplars to open Tempo directly.\n\n`traceId` and `spanId` remain structured metadata, never indexed Loki labels.\n\nThe asynchronous outbox/Kafka boundary uses the existing event identity rather than pretending it is one HTTP trace."}}
+  ],
+  "refresh": "5s",
+  "schemaVersion": 41,
+  "tags": ["yurtlar", "observability", "incident"],
+  "templating": {
+    "list": [
+      {"name":"environment","label":"Environment","type":"query","datasource":{"type":"loki","uid":"loki"},"query":"label_values({service=\"yurtlar\"}, environment)","definition":"label_values({service=\"yurtlar\"}, environment)","includeAll":true,"allValue":".*","multi":true,"refresh":1,"current":{"text":"All","value":"$__all"}},
+      {"name":"component","label":"Component","type":"query","datasource":{"type":"loki","uid":"loki"},"query":"label_values({service=\"yurtlar\"}, component)","definition":"label_values({service=\"yurtlar\"}, component)","includeAll":true,"allValue":".*","multi":true,"refresh":1,"current":{"text":"All","value":"$__all"}},
+      {"name":"errorCode","label":"Error Code","type":"query","datasource":{"type":"prometheus","uid":"prometheus"},"query":"label_values(yurtlar_errors_total, code)","definition":"label_values(yurtlar_errors_total, code)","includeAll":true,"allValue":".*","multi":true,"refresh":1,"current":{"text":"All","value":"$__all"}},
+      {"name":"severity","label":"Severity","type":"query","datasource":{"type":"prometheus","uid":"prometheus"},"query":"label_values(yurtlar_errors_total, severity)","definition":"label_values(yurtlar_errors_total, severity)","includeAll":true,"allValue":".*","multi":true,"refresh":1,"current":{"text":"All","value":"$__all"}}
+    ]
+  },
+  "time": {"from": "now-15m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Yurtlar - Incident Drilldown",
+  "uid": "yurtlar-incident-drilldown",
+  "version": 1,
+  "weekStart": ""
+}

@@ -1,0 +1,145 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: Yurtlar incident alerts
+    folder: Yurtlar Observability
+    interval: 30s
+    rules:
+      - uid: yurtlar-high-5xx-rate
+        title: HIGH_5XX_RATE
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              editorMode: code
+              expr: '(sum(rate(http_server_requests_seconds_count{job="yurtlar-backend",status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job="yurtlar-backend"}[5m])), 0.001)) and on() (sum(increase(http_server_requests_seconds_count{job="yurtlar-backend"}[5m])) >= 20)'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              conditions: [{ evaluator: { params: [0.05], type: gt }, operator: { type: and }, query: { params: [C] }, reducer: { params: [], type: last }, type: query }]
+              expression: A
+              refId: C
+              type: threshold
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: Backend 5xx ratio is above 5 percent
+          description: At least 20 requests occurred in five minutes and more than 5 percent returned 5xx for one minute.
+        labels: { service: yurtlar-backend, environment: local, severity: critical, component: HTTP }
+
+      - uid: yurtlar-kafka-dlt-activity
+        title: KAFKA_DLT_ACTIVITY
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model: { editorMode: code, expr: 'sum(increase(yurtlar_kafka_dlt_total[5m]))', instant: true, intervalMs: 1000, maxDataPoints: 43200, refId: A }
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model: { conditions: [{ evaluator: { params: [0], type: gt }, operator: { type: and }, query: { params: [C] }, reducer: { params: [], type: last }, type: query }], expression: A, refId: C, type: threshold }
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        annotations: { summary: Kafka record reached a dead-letter topic, description: At least one application DLT publication occurred in the last five minutes. }
+        labels: { service: yurtlar-backend, environment: local, severity: warning, component: KAFKA }
+
+      - uid: yurtlar-outbox-stuck
+        title: OUTBOX_STUCK
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 180, to: 0 }
+            datasourceUid: prometheus
+            model: { editorMode: code, expr: 'max(yurtlar_outbox_oldest_pending_age_seconds)', instant: true, intervalMs: 1000, maxDataPoints: 43200, refId: A }
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model: { conditions: [{ evaluator: { params: [60], type: gt }, operator: { type: and }, query: { params: [C] }, reducer: { params: [], type: last }, type: query }], expression: A, refId: C, type: threshold }
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        annotations: { summary: Outbox delivery is stuck, description: The oldest pending outbox row has remained older than 60 seconds for two minutes. }
+        labels: { service: yurtlar-backend, environment: local, severity: critical, component: OUTBOX }
+
+      - uid: yurtlar-outbox-publish-failures
+        title: OUTBOX_PUBLISH_FAILURES
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model: { editorMode: code, expr: 'sum(increase(yurtlar_outbox_publish_failure_total[5m]))', instant: true, intervalMs: 1000, maxDataPoints: 43200, refId: A }
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model: { conditions: [{ evaluator: { params: [0], type: gt }, operator: { type: and }, query: { params: [C] }, reducer: { params: [], type: last }, type: query }], expression: A, refId: C, type: threshold }
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        annotations: { summary: Outbox publishing failed, description: One or more outbox publish attempts failed during the last five minutes. }
+        labels: { service: yurtlar-backend, environment: local, severity: warning, component: OUTBOX }
+
+      - uid: yurtlar-elasticsearch-failures
+        title: ELASTICSEARCH_FAILURES
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model: { editorMode: code, expr: 'sum(increase({__name__=~"yurtlar_elasticsearch_(index|search|reindex)_failure_total"}[5m]))', instant: true, intervalMs: 1000, maxDataPoints: 43200, refId: A }
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model: { conditions: [{ evaluator: { params: [0], type: gt }, operator: { type: and }, query: { params: [C] }, reducer: { params: [], type: last }, type: query }], expression: A, refId: C, type: threshold }
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        annotations: { summary: Elasticsearch operation failed, description: Indexing search or reindexing reported a failure during the last five minutes. }
+        labels: { service: yurtlar-backend, environment: local, severity: warning, component: ELASTICSEARCH }
+
+      - uid: yurtlar-kafka-consumer-lag
+        title: KAFKA_CONSUMER_LAG
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 180, to: 0 }
+            datasourceUid: prometheus
+            model: { editorMode: code, expr: 'sum(kafka_consumergroup_lag{consumergroup="document-upload-idempotency-group-v1",topic="dormitory-activity-events"})', instant: true, intervalMs: 1000, maxDataPoints: 43200, refId: A }
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model: { conditions: [{ evaluator: { params: [100], type: gt }, operator: { type: and }, query: { params: [C] }, reducer: { params: [], type: last }, type: query }], expression: A, refId: C, type: threshold }
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        annotations: { summary: Kafka consumer lag is sustained, description: Document-upload consumer lag has remained above 100 records for two minutes. }
+        labels: { service: yurtlar-backend, environment: local, severity: warning, component: KAFKA }
+
+      - uid: yurtlar-internal-critical-errors
+        title: INTERNAL_CRITICAL_ERRORS
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model: { editorMode: code, expr: 'sum(increase(yurtlar_errors_total{category="INTERNAL",severity="CRITICAL"}[5m]))', instant: true, intervalMs: 1000, maxDataPoints: 43200, refId: A }
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model: { conditions: [{ evaluator: { params: [0], type: gt }, operator: { type: and }, query: { params: [C] }, reducer: { params: [], type: last }, type: query }], expression: A, refId: C, type: threshold }
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        annotations: { summary: Critical internal application error, description: At least one INTERNAL CRITICAL application error occurred during the last five minutes. }
+        labels: { service: yurtlar-backend, environment: local, severity: critical, component: APPLICATION }
