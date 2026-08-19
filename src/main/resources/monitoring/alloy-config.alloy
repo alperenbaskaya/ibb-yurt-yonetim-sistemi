@@ -27,6 +27,8 @@ loki.process "yurtlar_backend" {
       operation     = "operation",
       index         = "index",
       exception     = "exception",
+      traceId       = "traceId",
+      spanId        = "spanId",
     }
   }
 
@@ -50,6 +52,8 @@ loki.process "yurtlar_backend" {
       operation     = "operation",
       index         = "index",
       exception     = "exception",
+      traceId       = "traceId",
+      spanId        = "spanId",
     }
   }
 
@@ -59,5 +63,35 @@ loki.process "yurtlar_backend" {
 loki.write "local" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+otelcol.receiver.otlp "yurtlar_traces" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.yurtlar_traces.input]
+  }
+}
+
+otelcol.processor.batch "yurtlar_traces" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+
+    tls {
+      insecure = true
+    }
   }
 }

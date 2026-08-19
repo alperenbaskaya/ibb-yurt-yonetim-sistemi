@@ -71,6 +71,7 @@ services:
     depends_on:
       - prometheus
       - loki
+      - tempo
     restart: unless-stopped
 
   loki:
@@ -92,12 +93,25 @@ services:
       - "/etc/alloy/config.alloy"
     ports:
       - "12345:12345"
+      - "4317:4317"
+      - "4318:4318"
     volumes:
       - ./monitoring/alloy-config.alloy:/etc/alloy/config.alloy:ro
       - ../../../logs:/var/log/yurtlar:ro
       - alloy-data:/var/lib/alloy/data
     depends_on:
       - loki
+      - tempo
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.10.7
+    command: ["-config.file=/etc/tempo/tempo-config.yml"]
+    ports:
+      - "3200:3200"
+    volumes:
+      - ./monitoring/tempo-config.yml:/etc/tempo/tempo-config.yml:ro
+      - tempo-data:/var/tempo
     restart: unless-stopped
 
   elasticsearch:
@@ -126,3 +140,4 @@ volumes:
   elasticsearch-data:
   loki-data:
   alloy-data:
+  tempo-data:
