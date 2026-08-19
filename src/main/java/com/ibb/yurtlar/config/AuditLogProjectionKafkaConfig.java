@@ -13,6 +13,7 @@ import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.FixedBackOff;
+import com.ibb.yurtlar.observability.KafkaMetricsService;
 
 @Configuration
 public class AuditLogProjectionKafkaConfig {
@@ -26,7 +27,8 @@ public class AuditLogProjectionKafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, String>
     auditLogProjectionKafkaListenerContainerFactory(
             ConsumerFactory<String, String> consumerFactory,
-            KafkaTemplate<String, String> kafkaTemplate
+            KafkaTemplate<String, String> kafkaTemplate,
+            KafkaMetricsService metrics
     ) {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
@@ -44,14 +46,20 @@ public class AuditLogProjectionKafkaConfig {
         recoverer.setFailIfSendResultIsError(true);
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(
-                recoverer,
+                (record, exception) -> {
+                    recoverer.accept(record, exception);
+                    metrics.deadLetter("AUDIT_LOG_RECORDED",
+                            "audit-log-elasticsearch-projection-v1");
+                },
                 new FixedBackOff(1000L, 3L)
         );
         errorHandler.addNotRetryableExceptions(
                 InvalidKafkaEventPayloadException.class
         );
         errorHandler.setRetryListeners(
-                (record, exception, deliveryAttempt) ->
+                (record, exception, deliveryAttempt) -> {
+                        metrics.processingError("AUDIT_LOG_RECORDED",
+                                "audit-log-elasticsearch-projection-v1");
                         log.warn(
                                 "Audit projection delivery failed."
                                         + " topic={} partition={} offset={}"
@@ -61,7 +69,8 @@ public class AuditLogProjectionKafkaConfig {
                                 record.offset(),
                                 deliveryAttempt,
                                 exception.getClass().getSimpleName()
-                        )
+                        );
+                }
         );
         factory.setCommonErrorHandler(errorHandler);
         return factory;

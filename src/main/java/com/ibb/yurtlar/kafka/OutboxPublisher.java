@@ -4,6 +4,7 @@ import com.ibb.yurtlar.entity.OutboxEvent;
 import com.ibb.yurtlar.enums.OutboxEventStatus;
 import com.ibb.yurtlar.repository.OutboxEventRepository;
 import com.ibb.yurtlar.service.OutboxEventService;
+import com.ibb.yurtlar.observability.OutboxMetricsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -29,11 +30,13 @@ public class OutboxPublisher {
     private final OutboxEventRepository outboxEventRepository;
     private final OutboxEventService outboxEventService;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final OutboxMetricsService metrics;
 
     public OutboxPublisher(
             OutboxEventRepository outboxEventRepository,
             OutboxEventService outboxEventService,
-            KafkaTemplate<String, String> kafkaTemplate
+            KafkaTemplate<String, String> kafkaTemplate,
+            OutboxMetricsService metrics
     ) {
         this.outboxEventRepository =
                 outboxEventRepository;
@@ -43,6 +46,7 @@ public class OutboxPublisher {
 
         this.kafkaTemplate =
                 kafkaTemplate;
+        this.metrics = metrics;
     }
 
     @Scheduled(
@@ -92,6 +96,7 @@ public class OutboxPublisher {
                     .markPublished(
                             event.getId()
                     );
+            metrics.publishSuccess();
 
             log.info(
                     "Outbox event Kafka'ya gönderildi."
@@ -106,6 +111,7 @@ public class OutboxPublisher {
             return true;
 
         } catch (InterruptedException exception) {
+            metrics.publishFailure();
 
             Thread.currentThread().interrupt();
 
@@ -122,6 +128,7 @@ public class OutboxPublisher {
                 ExecutionException
                 | TimeoutException exception
         ) {
+            metrics.publishFailure();
 
             log.warn(
                     "Outbox event Kafka'ya gönderilemedi."
@@ -134,6 +141,9 @@ public class OutboxPublisher {
             );
 
             return false;
+        } catch (RuntimeException exception) {
+            metrics.publishFailure();
+            throw exception;
         }
     }
 }

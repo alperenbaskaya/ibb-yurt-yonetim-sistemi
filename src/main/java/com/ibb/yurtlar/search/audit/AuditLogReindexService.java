@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.AUDIT_SEARCH_UNAVAILABLE;
+import com.ibb.yurtlar.observability.ElasticsearchMetricsService;
 
 @Service
 public class AuditLogReindexService {
@@ -24,17 +25,20 @@ public class AuditLogReindexService {
     private final ElasticsearchOperations operations;
     private final AuditLogIndexMapper mapper;
     private final int batchSize;
+    private final ElasticsearchMetricsService metrics;
 
     public AuditLogReindexService(
             AuditLogRepository auditLogRepository,
             ElasticsearchOperations operations,
             AuditLogIndexMapper mapper,
-            @Value("${app.elasticsearch.audit-reindex-batch-size:500}") int batchSize
+            @Value("${app.elasticsearch.audit-reindex-batch-size:500}") int batchSize,
+            ElasticsearchMetricsService metrics
     ) {
         this.auditLogRepository = auditLogRepository;
         this.operations = operations;
         this.mapper = mapper;
         this.batchSize = batchSize;
+        this.metrics = metrics;
     }
 
     @Transactional(readOnly = true)
@@ -59,9 +63,12 @@ public class AuditLogReindexService {
                 indexed += documents.size();
                 lastProcessedId = batch.getLast().getId();
             }
-            return new AuditLogReindexResponse(
+            AuditLogReindexResponse response = new AuditLogReindexResponse(
                     highWaterMark, scanned, indexed, lastProcessedId);
+            metrics.reindexSuccess();
+            return response;
         } catch (RuntimeException exception) {
+            metrics.reindexFailure();
             log.error("Audit log Elasticsearch reindex failed. highWaterMark={}, lastProcessedId={}",
                     highWaterMark, lastProcessedId, exception);
             throw new BusinessException(AUDIT_SEARCH_UNAVAILABLE);

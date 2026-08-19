@@ -1,0 +1,6 @@
+package com.ibb.yurtlar.observability;
+
+public enum ErrorCategory {
+    VALIDATION, AUTHENTICATION, AUTHORIZATION, BUSINESS_RULE,
+    DATABASE, FILE_STORAGE, KAFKA, OUTBOX, ELASTICSEARCH, INTERNAL
+}

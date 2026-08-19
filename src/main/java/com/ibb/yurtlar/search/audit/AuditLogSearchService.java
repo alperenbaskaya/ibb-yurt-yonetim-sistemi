@@ -17,6 +17,7 @@ import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Service;
+import com.ibb.yurtlar.observability.ElasticsearchMetricsService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,9 +35,12 @@ public class AuditLogSearchService {
     };
 
     private final ElasticsearchOperations operations;
+    private final ElasticsearchMetricsService metrics;
 
-    public AuditLogSearchService(ElasticsearchOperations operations) {
+    public AuditLogSearchService(ElasticsearchOperations operations,
+                                 ElasticsearchMetricsService metrics) {
         this.operations = operations;
+        this.metrics = metrics;
     }
 
     public AuditLogPageResponse search(AuditLogSearchCriteria criteria, Long authorizedDormitoryId) {
@@ -46,11 +50,13 @@ public class AuditLogSearchService {
                     buildSearchQuery(criteria, authorizedDormitoryId), AuditLogSearchDocument.class);
             long total = hits.getTotalHits();
             int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / criteria.size());
+            metrics.searchSuccess();
             return new AuditLogPageResponse(
                     hits.getSearchHits().stream().map(hit -> toResponse(hit.getContent())).toList(),
                     criteria.page(), criteria.size(), total, totalPages,
                     criteria.page() == 0, criteria.page() + 1 >= totalPages);
         } catch (RuntimeException exception) {
+            metrics.searchFailure();
             throw unavailable("search", exception);
         }
     }
@@ -73,8 +79,11 @@ public class AuditLogSearchService {
                     builder.build(), AuditLogSearchDocument.class);
             ElasticsearchAggregations aggregations =
                     (ElasticsearchAggregations) hits.getAggregations();
-            return mapAnalytics(aggregations);
+            AuditLogAnalyticsResponse response = mapAnalytics(aggregations);
+            metrics.searchSuccess();
+            return response;
         } catch (RuntimeException exception) {
+            metrics.searchFailure();
             throw unavailable("analytics", exception);
         }
     }

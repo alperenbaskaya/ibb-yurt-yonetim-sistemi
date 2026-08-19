@@ -9,6 +9,8 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
+import com.ibb.yurtlar.observability.ErrorMetricsService;
+import com.ibb.yurtlar.observability.ErrorSource;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -18,12 +20,15 @@ public class CustomAuthenticationEntryPoint
         implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper;
+    private final ErrorMetricsService errorMetricsService;
 
     public CustomAuthenticationEntryPoint(
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ErrorMetricsService errorMetricsService
     ) {
         this.objectMapper =
                 objectMapper;
+        this.errorMetricsService = errorMetricsService;
     }
 
     @Override
@@ -32,6 +37,8 @@ public class CustomAuthenticationEntryPoint
             HttpServletResponse response,
             AuthenticationException authenticationException
     ) throws IOException, ServletException {
+        errorMetricsService.record("AUTHENTICATION_REQUIRED", HttpStatus.UNAUTHORIZED,
+                ErrorSource.SECURITY, authenticationException);
 
         ErrorResponse errorResponse =
                 new ErrorResponse(

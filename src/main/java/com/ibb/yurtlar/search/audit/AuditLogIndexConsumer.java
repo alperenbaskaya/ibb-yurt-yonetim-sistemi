@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
+import com.ibb.yurtlar.observability.ElasticsearchMetricsService;
 
 @Component
 @Profile("!test")
@@ -21,15 +22,18 @@ public class AuditLogIndexConsumer {
     private final ObjectMapper objectMapper;
     private final AuditLogIndexMapper mapper;
     private final AuditLogSearchRepository repository;
+    private final ElasticsearchMetricsService metrics;
 
     public AuditLogIndexConsumer(
             ObjectMapper objectMapper,
             AuditLogIndexMapper mapper,
-            AuditLogSearchRepository repository
+            AuditLogSearchRepository repository,
+            ElasticsearchMetricsService metrics
     ) {
         this.objectMapper = objectMapper;
         this.mapper = mapper;
         this.repository = repository;
+        this.metrics = metrics;
     }
 
     @KafkaListener(
@@ -52,7 +56,13 @@ public class AuditLogIndexConsumer {
 
     public void process(AuditLogRecordedKafkaEvent event) {
         validate(event);
-        repository.save(mapper.toDocument(event));
+        try {
+            repository.save(mapper.toDocument(event));
+            metrics.indexSuccess();
+        } catch (RuntimeException exception) {
+            metrics.indexFailure();
+            throw exception;
+        }
     }
 
     private AuditLogRecordedKafkaEvent deserialize(String payload) {

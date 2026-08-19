@@ -6,6 +6,7 @@ import com.ibb.yurtlar.repository.AuditLogRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import com.ibb.yurtlar.observability.ElasticsearchMetricsService;
 
 import java.util.List;
 
@@ -18,8 +19,9 @@ class AuditLogReindexServiceTest {
     private final AuditLogRepository mysql = mock(AuditLogRepository.class);
     private final ElasticsearchOperations elasticsearch = mock(ElasticsearchOperations.class);
     private final AuditLogIndexMapper mapper = mock(AuditLogIndexMapper.class);
+    private final ElasticsearchMetricsService metrics = mock(ElasticsearchMetricsService.class);
     private final AuditLogReindexService service =
-            new AuditLogReindexService(mysql, elasticsearch, mapper, 2);
+            new AuditLogReindexService(mysql, elasticsearch, mapper, 2, metrics);
 
     @Test
     void usesKeysetBatchesBoundedByCapturedHighWaterMark() {
@@ -36,6 +38,7 @@ class AuditLogReindexServiceTest {
         verify(mysql).findReindexBatch(eq(0L), eq(4L), argThat(p -> p.getPageSize() == 2));
         verify(mysql).findReindexBatch(eq(2L), eq(4L), argThat(p -> p.getPageSize() == 2));
         verify(elasticsearch, times(2)).save(any(Iterable.class));
+        verify(metrics).reindexSuccess();
     }
 
     @Test
@@ -66,6 +69,7 @@ class AuditLogReindexServiceTest {
                 .extracting("code").isEqualTo("AUDIT_SEARCH_UNAVAILABLE");
         verify(elasticsearch, never()).delete(any(AuditLogSearchDocument.class));
         verify(mysql, never()).save(any());
+        verify(metrics).reindexFailure();
     }
 
     private AuditLog audit(long id) {

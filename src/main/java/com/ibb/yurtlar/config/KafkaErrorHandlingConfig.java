@@ -15,6 +15,7 @@ import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.FixedBackOff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.ibb.yurtlar.observability.KafkaMetricsService;
 
 @Configuration
 public class KafkaErrorHandlingConfig {
@@ -39,7 +40,8 @@ public class KafkaErrorHandlingConfig {
     public ConcurrentKafkaListenerContainerFactory<String, String>
     documentUploadedKafkaListenerContainerFactory(
             ConsumerFactory<String, String> consumerFactory,
-            KafkaTemplate<String, String> kafkaTemplate
+            KafkaTemplate<String, String> kafkaTemplate,
+            KafkaMetricsService metrics
     ) {
 
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
@@ -73,12 +75,18 @@ public class KafkaErrorHandlingConfig {
 
         DefaultErrorHandler errorHandler =
                 new DefaultErrorHandler(
-                        recoverer,
+                        (record, exception) -> {
+                            recoverer.accept(record, exception);
+                            metrics.deadLetter("DOCUMENT_UPLOADED",
+                                    "document-upload-idempotency-group-v1");
+                        },
                         fixedBackOff
                 );
 
         errorHandler.setRetryListeners(
-                (record, exception, deliveryAttempt) ->
+                (record, exception, deliveryAttempt) -> {
+                        metrics.processingError("DOCUMENT_UPLOADED",
+                                "document-upload-idempotency-group-v1");
                         log.warn(
                                 "Kafka delivery başarısız."
                                         + " topic={}"
@@ -91,7 +99,8 @@ public class KafkaErrorHandlingConfig {
                                 record.offset(),
                                 deliveryAttempt,
                                 exception.getClass().getSimpleName()
-                        )
+                        );
+                }
         );
 
         errorHandler.addNotRetryableExceptions(

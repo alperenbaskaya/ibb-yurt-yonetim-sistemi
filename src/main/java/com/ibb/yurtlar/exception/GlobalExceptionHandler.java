@@ -1,6 +1,8 @@
 package com.ibb.yurtlar.exception;
 
 import com.ibb.yurtlar.exception.dto.ErrorResponse;
+import com.ibb.yurtlar.observability.ErrorMetricsService;
+import com.ibb.yurtlar.observability.ErrorSource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +25,11 @@ public class GlobalExceptionHandler {
 
     private static final Logger log =
             LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private final ErrorMetricsService errorMetricsService;
+
+    public GlobalExceptionHandler(ErrorMetricsService errorMetricsService) {
+        this.errorMetricsService = errorMetricsService;
+    }
 
 
     @ExceptionHandler(BusinessException.class)
@@ -32,6 +39,7 @@ public class GlobalExceptionHandler {
     ) {
         HttpStatus status =
                 exception.getHttpStatus();
+        errorMetricsService.record(exception.getCode(), status, ErrorSource.HTTP, exception);
 
         ErrorResponse response =
                 createErrorResponse(
@@ -53,6 +61,8 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException exception,
             HttpServletRequest request
     ) {
+        errorMetricsService.record("VALIDATION_ERROR", HttpStatus.BAD_REQUEST,
+                ErrorSource.HTTP, exception);
         Map<String, String> validationErrors =
                 new LinkedHashMap<>();
 
@@ -85,6 +95,8 @@ public class GlobalExceptionHandler {
             MethodArgumentTypeMismatchException exception,
             HttpServletRequest request
     ) {
+        errorMetricsService.record("INVALID_REQUEST_PARAMETER", HttpStatus.BAD_REQUEST,
+                ErrorSource.HTTP, exception);
         return ResponseEntity
                 .badRequest()
                 .body(
@@ -105,6 +117,8 @@ public class GlobalExceptionHandler {
             MissingServletRequestParameterException exception,
             HttpServletRequest request
     ) {
+        errorMetricsService.record("MISSING_REQUEST_PARAMETER", HttpStatus.BAD_REQUEST,
+                ErrorSource.HTTP, exception);
         return ResponseEntity
                 .badRequest()
                 .body(
@@ -125,6 +139,8 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException exception,
             HttpServletRequest request
     ) {
+        errorMetricsService.record("INVALID_REQUEST_BODY", HttpStatus.BAD_REQUEST,
+                ErrorSource.HTTP, exception);
         return ResponseEntity
                 .badRequest()
                 .body(
@@ -145,6 +161,8 @@ public class GlobalExceptionHandler {
             AccessDeniedException exception,
             HttpServletRequest request
     ) {
+        errorMetricsService.record("ACCESS_DENIED", HttpStatus.FORBIDDEN,
+                ErrorSource.HTTP, exception);
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(
@@ -164,6 +182,8 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
+        errorMetricsService.record("INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR,
+                ErrorSource.HTTP, exception);
         log.error(
                 "Beklenmeyen hata. method={}, path={}",
                 request.getMethod(),

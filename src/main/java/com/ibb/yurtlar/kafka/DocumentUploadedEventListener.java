@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.ibb.yurtlar.exception.InvalidKafkaEventPayloadException;
+import com.ibb.yurtlar.observability.KafkaMetricsService;
 
 @Component
 public class DocumentUploadedEventListener {
@@ -24,13 +25,16 @@ public class DocumentUploadedEventListener {
 
     private final DocumentUploadedEventConsumerService
             consumerService;
+    private final KafkaMetricsService metrics;
 
     public DocumentUploadedEventListener(
             ObjectMapper objectMapper,
-            DocumentUploadedEventConsumerService consumerService
+            DocumentUploadedEventConsumerService consumerService,
+            KafkaMetricsService metrics
     ) {
         this.objectMapper = objectMapper;
         this.consumerService = consumerService;
+        this.metrics = metrics;
     }
 
     @KafkaListener(
@@ -74,6 +78,7 @@ public class DocumentUploadedEventListener {
             );
 
         } catch (DuplicateKafkaEventException exception) {
+            metrics.duplicate("DOCUMENT_UPLOADED", "document-upload-idempotency-group-v1");
 
             log.info(
                     "Duplicate Kafka event atlandı."

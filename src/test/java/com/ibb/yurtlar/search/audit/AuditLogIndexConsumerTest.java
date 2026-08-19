@@ -8,6 +8,7 @@ import com.ibb.yurtlar.exception.InvalidKafkaEventPayloadException;
 import com.ibb.yurtlar.kafka.event.AuditLogRecordedKafkaEvent;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
+import com.ibb.yurtlar.observability.ElasticsearchMetricsService;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -28,8 +29,9 @@ class AuditLogIndexConsumerTest {
     private final AuditLogIndexMapper mapper = new AuditLogIndexMapper();
     private final AuditLogSearchRepository repository =
             mock(AuditLogSearchRepository.class);
+    private final ElasticsearchMetricsService metrics = mock(ElasticsearchMetricsService.class);
     private final AuditLogIndexConsumer consumer =
-            new AuditLogIndexConsumer(objectMapper, mapper, repository);
+            new AuditLogIndexConsumer(objectMapper, mapper, repository, metrics);
 
     @Test
     void validEventIsIndexed() {
@@ -38,6 +40,7 @@ class AuditLogIndexConsumerTest {
         consumer.process(event);
 
         verify(repository).save(any(AuditLogSearchDocument.class));
+        verify(metrics).indexSuccess();
     }
 
     @Test
@@ -89,6 +92,7 @@ class AuditLogIndexConsumerTest {
                 .isSameAs(failure);
 
         verify(repository).save(any(AuditLogSearchDocument.class));
+        verify(metrics).indexFailure();
     }
 
     private AuditLogRecordedKafkaEvent validEvent(Long auditLogId) {

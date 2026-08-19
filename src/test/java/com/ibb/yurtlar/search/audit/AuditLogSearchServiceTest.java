@@ -16,10 +16,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import com.ibb.yurtlar.observability.ElasticsearchMetricsService;
 
 class AuditLogSearchServiceTest {
     private final ElasticsearchOperations operations = mock(ElasticsearchOperations.class);
-    private final AuditLogSearchService service = new AuditLogSearchService(operations);
+    private final ElasticsearchMetricsService metrics = mock(ElasticsearchMetricsService.class);
+    private final AuditLogSearchService service = new AuditLogSearchService(operations, metrics);
 
     @Test
     void buildsTextExactDateFiltersAndDeterministicSorting() {
@@ -75,6 +77,7 @@ class AuditLogSearchServiceTest {
                     assertThat(businessException.getHttpStatus().value()).isEqualTo(503);
                     assertThat(businessException.getMessage()).doesNotContain("connection refused");
                 });
+        verify(metrics).searchFailure();
     }
 
     @Test

@@ -9,6 +9,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest;
 
 @Configuration
 @EnableMethodSecurity
@@ -66,6 +67,11 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth ->
                         auth
+                                .requestMatchers(
+                                        EndpointRequest.to("health", "prometheus")
+                                )
+                                .permitAll()
+
                                 .requestMatchers(
                                         "/api/auth/login"
                                 )

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.ibb.yurtlar.observability.ErrorMetricsService;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,11 +20,17 @@ import org.springframework.web.bind.annotation.RestController;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import com.ibb.yurtlar.observability.ErrorSource;
+import org.springframework.http.HttpStatus;
 
 @ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerRequestBindingTest {
 
     @Mock GlobalAuditHistoryService historyService;
+    @Mock ErrorMetricsService errorMetricsService;
 
     private MockMvc mockMvc;
 
@@ -34,7 +41,7 @@ class GlobalExceptionHandlerRequestBindingTest {
                         new GlobalAuditHistoryController(historyService),
                         new FailureProbeController()
                 )
-                .setControllerAdvice(new GlobalExceptionHandler())
+                .setControllerAdvice(new GlobalExceptionHandler(errorMetricsService))
                 .build();
     }
 
@@ -46,6 +53,8 @@ class GlobalExceptionHandlerRequestBindingTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message")
                         .value("Geçersiz istek parametresi: page"));
+        verify(errorMetricsService).record(eq("INVALID_REQUEST_PARAMETER"),
+                eq(HttpStatus.BAD_REQUEST), eq(ErrorSource.HTTP), any());
     }
 
     @Test
@@ -82,6 +91,8 @@ class GlobalExceptionHandlerRequestBindingTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
                         .value("Bu kategori yurt operasyon geçmişi için desteklenmiyor."));
+        verify(errorMetricsService).record(eq("INVALID_AUDIT_HISTORY_REQUEST"),
+                eq(HttpStatus.BAD_REQUEST), eq(ErrorSource.HTTP), any());
     }
 
     @Test
@@ -91,6 +102,8 @@ class GlobalExceptionHandlerRequestBindingTest {
                 .andExpect(jsonPath("$.status").value(500))
                 .andExpect(jsonPath("$.message")
                         .value("Beklenmeyen bir hata oluştu."));
+        verify(errorMetricsService).record(eq("INTERNAL_SERVER_ERROR"),
+                eq(HttpStatus.INTERNAL_SERVER_ERROR), eq(ErrorSource.HTTP), any());
     }
 
     @RestController

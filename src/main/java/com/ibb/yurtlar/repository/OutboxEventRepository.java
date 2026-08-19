@@ -12,6 +12,11 @@ import java.util.List;
 public interface OutboxEventRepository
         extends JpaRepository<OutboxEvent, Long> {
 
+    long countByStatus(OutboxEventStatus status);
+
+    @Query("SELECT MIN(event.createdAt) FROM OutboxEvent event WHERE event.status = :status")
+    java.time.LocalDateTime findOldestCreatedAtByStatus(@Param("status") OutboxEventStatus status);
+
     @Query("""
             SELECT event
             FROM OutboxEvent event
