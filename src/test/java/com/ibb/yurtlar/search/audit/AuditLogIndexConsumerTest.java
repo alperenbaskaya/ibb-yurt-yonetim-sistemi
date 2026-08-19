@@ -31,7 +31,8 @@ class AuditLogIndexConsumerTest {
             mock(AuditLogSearchRepository.class);
     private final ElasticsearchMetricsService metrics = mock(ElasticsearchMetricsService.class);
     private final AuditLogIndexConsumer consumer =
-            new AuditLogIndexConsumer(objectMapper, mapper, repository, metrics);
+            new AuditLogIndexConsumer(objectMapper, mapper, repository, metrics,
+                    "yurtlar-audit-log-v1");
 
     @Test
     void validEventIsIndexed() {

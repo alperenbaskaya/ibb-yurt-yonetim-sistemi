@@ -18,6 +18,7 @@ import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Service;
 import com.ibb.yurtlar.observability.ElasticsearchMetricsService;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,11 +37,14 @@ public class AuditLogSearchService {
 
     private final ElasticsearchOperations operations;
     private final ElasticsearchMetricsService metrics;
+    private final String indexName;
 
     public AuditLogSearchService(ElasticsearchOperations operations,
-                                 ElasticsearchMetricsService metrics) {
+                                 ElasticsearchMetricsService metrics,
+                                 @Value("${app.elasticsearch.audit-index}") String indexName) {
         this.operations = operations;
         this.metrics = metrics;
+        this.indexName = indexName;
     }
 
     public AuditLogPageResponse search(AuditLogSearchCriteria criteria, Long authorizedDormitoryId) {
@@ -185,7 +189,14 @@ public class AuditLogSearchService {
     }
 
     private BusinessException unavailable(String operation, RuntimeException exception) {
-        log.error("Audit log Elasticsearch {} failed", operation, exception);
+        log.atError()
+                .addKeyValue("component", "ELASTICSEARCH")
+                .addKeyValue("operation", operation.toUpperCase(java.util.Locale.ROOT))
+                .addKeyValue("index", indexName)
+                .addKeyValue("errorCode", "AUDIT_SEARCH_UNAVAILABLE")
+                .addKeyValue("exception", exception.getClass().getSimpleName())
+                .setCause(exception)
+                .log("Audit Elasticsearch operation failed");
         return new BusinessException(AUDIT_SEARCH_UNAVAILABLE);
     }
 }

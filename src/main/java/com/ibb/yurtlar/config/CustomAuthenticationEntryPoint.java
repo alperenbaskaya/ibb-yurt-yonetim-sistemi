@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 import com.ibb.yurtlar.observability.ErrorMetricsService;
 import com.ibb.yurtlar.observability.ErrorSource;
+import com.ibb.yurtlar.observability.StructuredErrorLogger;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -21,14 +22,17 @@ public class CustomAuthenticationEntryPoint
 
     private final ObjectMapper objectMapper;
     private final ErrorMetricsService errorMetricsService;
+    private final StructuredErrorLogger structuredErrorLogger;
 
     public CustomAuthenticationEntryPoint(
             ObjectMapper objectMapper,
-            ErrorMetricsService errorMetricsService
+            ErrorMetricsService errorMetricsService,
+            StructuredErrorLogger structuredErrorLogger
     ) {
         this.objectMapper =
                 objectMapper;
         this.errorMetricsService = errorMetricsService;
+        this.structuredErrorLogger = structuredErrorLogger;
     }
 
     @Override
@@ -38,6 +42,8 @@ public class CustomAuthenticationEntryPoint
             AuthenticationException authenticationException
     ) throws IOException, ServletException {
         errorMetricsService.record("AUTHENTICATION_REQUIRED", HttpStatus.UNAUTHORIZED,
+                ErrorSource.SECURITY, authenticationException);
+        structuredErrorLogger.expected("AUTHENTICATION_REQUIRED", HttpStatus.UNAUTHORIZED,
                 ErrorSource.SECURITY, authenticationException);
 
         ErrorResponse errorResponse =

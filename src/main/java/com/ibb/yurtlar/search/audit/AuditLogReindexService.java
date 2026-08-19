@@ -26,19 +26,22 @@ public class AuditLogReindexService {
     private final AuditLogIndexMapper mapper;
     private final int batchSize;
     private final ElasticsearchMetricsService metrics;
+    private final String indexName;
 
     public AuditLogReindexService(
             AuditLogRepository auditLogRepository,
             ElasticsearchOperations operations,
             AuditLogIndexMapper mapper,
             @Value("${app.elasticsearch.audit-reindex-batch-size:500}") int batchSize,
-            ElasticsearchMetricsService metrics
+            ElasticsearchMetricsService metrics,
+            @Value("${app.elasticsearch.audit-index}") String indexName
     ) {
         this.auditLogRepository = auditLogRepository;
         this.operations = operations;
         this.mapper = mapper;
         this.batchSize = batchSize;
         this.metrics = metrics;
+        this.indexName = indexName;
     }
 
     @Transactional(readOnly = true)
@@ -69,8 +72,14 @@ public class AuditLogReindexService {
             return response;
         } catch (RuntimeException exception) {
             metrics.reindexFailure();
-            log.error("Audit log Elasticsearch reindex failed. highWaterMark={}, lastProcessedId={}",
-                    highWaterMark, lastProcessedId, exception);
+            log.atError()
+                    .addKeyValue("component", "ELASTICSEARCH")
+                    .addKeyValue("operation", "REINDEX")
+                    .addKeyValue("index", indexName)
+                    .addKeyValue("errorCode", "AUDIT_SEARCH_UNAVAILABLE")
+                    .addKeyValue("exception", exception.getClass().getSimpleName())
+                    .setCause(exception)
+                    .log("Audit Elasticsearch reindex failed");
             throw new BusinessException(AUDIT_SEARCH_UNAVAILABLE);
         }
     }

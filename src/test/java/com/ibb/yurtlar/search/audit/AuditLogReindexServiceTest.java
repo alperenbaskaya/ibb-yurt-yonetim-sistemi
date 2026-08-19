@@ -21,7 +21,8 @@ class AuditLogReindexServiceTest {
     private final AuditLogIndexMapper mapper = mock(AuditLogIndexMapper.class);
     private final ElasticsearchMetricsService metrics = mock(ElasticsearchMetricsService.class);
     private final AuditLogReindexService service =
-            new AuditLogReindexService(mysql, elasticsearch, mapper, 2, metrics);
+            new AuditLogReindexService(mysql, elasticsearch, mapper, 2, metrics,
+                    "yurtlar-audit-log-v1");
 
     @Test
     void usesKeysetBatchesBoundedByCapturedHighWaterMark() {

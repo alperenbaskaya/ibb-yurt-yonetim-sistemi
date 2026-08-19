@@ -3,9 +3,8 @@ package com.ibb.yurtlar.exception;
 import com.ibb.yurtlar.exception.dto.ErrorResponse;
 import com.ibb.yurtlar.observability.ErrorMetricsService;
 import com.ibb.yurtlar.observability.ErrorSource;
+import com.ibb.yurtlar.observability.StructuredErrorLogger;
 import jakarta.servlet.http.HttpServletRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -23,12 +22,13 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    private static final Logger log =
-            LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private final ErrorMetricsService errorMetricsService;
+    private final StructuredErrorLogger structuredErrorLogger;
 
-    public GlobalExceptionHandler(ErrorMetricsService errorMetricsService) {
+    public GlobalExceptionHandler(ErrorMetricsService errorMetricsService,
+                                  StructuredErrorLogger structuredErrorLogger) {
         this.errorMetricsService = errorMetricsService;
+        this.structuredErrorLogger = structuredErrorLogger;
     }
 
 
@@ -40,6 +40,7 @@ public class GlobalExceptionHandler {
         HttpStatus status =
                 exception.getHttpStatus();
         errorMetricsService.record(exception.getCode(), status, ErrorSource.HTTP, exception);
+        structuredErrorLogger.expected(exception.getCode(), status, ErrorSource.HTTP, exception);
 
         ErrorResponse response =
                 createErrorResponse(
@@ -62,6 +63,8 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         errorMetricsService.record("VALIDATION_ERROR", HttpStatus.BAD_REQUEST,
+                ErrorSource.HTTP, exception);
+        structuredErrorLogger.expected("VALIDATION_ERROR", HttpStatus.BAD_REQUEST,
                 ErrorSource.HTTP, exception);
         Map<String, String> validationErrors =
                 new LinkedHashMap<>();
@@ -97,6 +100,8 @@ public class GlobalExceptionHandler {
     ) {
         errorMetricsService.record("INVALID_REQUEST_PARAMETER", HttpStatus.BAD_REQUEST,
                 ErrorSource.HTTP, exception);
+        structuredErrorLogger.expected("INVALID_REQUEST_PARAMETER", HttpStatus.BAD_REQUEST,
+                ErrorSource.HTTP, exception);
         return ResponseEntity
                 .badRequest()
                 .body(
@@ -118,6 +123,8 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         errorMetricsService.record("MISSING_REQUEST_PARAMETER", HttpStatus.BAD_REQUEST,
+                ErrorSource.HTTP, exception);
+        structuredErrorLogger.expected("MISSING_REQUEST_PARAMETER", HttpStatus.BAD_REQUEST,
                 ErrorSource.HTTP, exception);
         return ResponseEntity
                 .badRequest()
@@ -141,6 +148,8 @@ public class GlobalExceptionHandler {
     ) {
         errorMetricsService.record("INVALID_REQUEST_BODY", HttpStatus.BAD_REQUEST,
                 ErrorSource.HTTP, exception);
+        structuredErrorLogger.expected("INVALID_REQUEST_BODY", HttpStatus.BAD_REQUEST,
+                ErrorSource.HTTP, exception);
         return ResponseEntity
                 .badRequest()
                 .body(
@@ -163,6 +172,8 @@ public class GlobalExceptionHandler {
     ) {
         errorMetricsService.record("ACCESS_DENIED", HttpStatus.FORBIDDEN,
                 ErrorSource.HTTP, exception);
+        structuredErrorLogger.expected("ACCESS_DENIED", HttpStatus.FORBIDDEN,
+                ErrorSource.HTTP, exception);
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(
@@ -184,12 +195,7 @@ public class GlobalExceptionHandler {
     ) {
         errorMetricsService.record("INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR,
                 ErrorSource.HTTP, exception);
-        log.error(
-                "Beklenmeyen hata. method={}, path={}",
-                request.getMethod(),
-                request.getRequestURI(),
-                exception
-        );
+        structuredErrorLogger.unexpected("INTERNAL_SERVER_ERROR", ErrorSource.HTTP, exception);
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)

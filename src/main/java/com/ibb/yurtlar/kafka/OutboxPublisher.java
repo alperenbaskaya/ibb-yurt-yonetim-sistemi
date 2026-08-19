@@ -98,15 +98,11 @@ public class OutboxPublisher {
                     );
             metrics.publishSuccess();
 
-            log.info(
-                    "Outbox event Kafka'ya gönderildi."
-                            + " outboxId={}"
-                            + " eventId={}"
-                            + " type={}",
-                    event.getId(),
-                    event.getEventId(),
-                    event.getEventType()
-            );
+            log.atDebug()
+                    .addKeyValue("component", "OUTBOX")
+                    .addKeyValue("eventType", event.getEventType())
+                    .addKeyValue("topic", event.getTopic())
+                    .log("Outbox event published");
 
             return true;
 
@@ -115,12 +111,13 @@ public class OutboxPublisher {
 
             Thread.currentThread().interrupt();
 
-            log.warn(
-                    "Outbox publisher thread kesildi."
-                            + " outboxId={}",
-                    event.getId(),
-                    exception
-            );
+            log.atError()
+                    .addKeyValue("component", "OUTBOX")
+                    .addKeyValue("eventType", event.getEventType())
+                    .addKeyValue("topic", event.getTopic())
+                    .addKeyValue("exception", exception.getClass().getSimpleName())
+                    .setCause(exception)
+                    .log("Outbox publisher interrupted");
 
             return false;
 
@@ -130,19 +127,24 @@ public class OutboxPublisher {
         ) {
             metrics.publishFailure();
 
-            log.warn(
-                    "Outbox event Kafka'ya gönderilemedi."
-                            + " PENDING olarak kalacak."
-                            + " outboxId={}"
-                            + " eventId={}",
-                    event.getId(),
-                    event.getEventId(),
-                    exception
-            );
+            log.atError()
+                    .addKeyValue("component", "OUTBOX")
+                    .addKeyValue("eventType", event.getEventType())
+                    .addKeyValue("topic", event.getTopic())
+                    .addKeyValue("exception", exception.getClass().getSimpleName())
+                    .setCause(exception)
+                    .log("Outbox publish failed; event remains pending");
 
             return false;
         } catch (RuntimeException exception) {
             metrics.publishFailure();
+            log.atError()
+                    .addKeyValue("component", "OUTBOX")
+                    .addKeyValue("eventType", event.getEventType())
+                    .addKeyValue("topic", event.getTopic())
+                    .addKeyValue("exception", exception.getClass().getSimpleName())
+                    .setCause(exception)
+                    .log("Outbox publish operation failed");
             throw exception;
         }
     }

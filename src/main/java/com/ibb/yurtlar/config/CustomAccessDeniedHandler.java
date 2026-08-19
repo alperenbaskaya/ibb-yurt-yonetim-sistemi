@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 import com.ibb.yurtlar.observability.ErrorMetricsService;
 import com.ibb.yurtlar.observability.ErrorSource;
+import com.ibb.yurtlar.observability.StructuredErrorLogger;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -21,14 +22,17 @@ public class CustomAccessDeniedHandler
 
     private final ObjectMapper objectMapper;
     private final ErrorMetricsService errorMetricsService;
+    private final StructuredErrorLogger structuredErrorLogger;
 
     public CustomAccessDeniedHandler(
             ObjectMapper objectMapper,
-            ErrorMetricsService errorMetricsService
+            ErrorMetricsService errorMetricsService,
+            StructuredErrorLogger structuredErrorLogger
     ) {
         this.objectMapper =
                 objectMapper;
         this.errorMetricsService = errorMetricsService;
+        this.structuredErrorLogger = structuredErrorLogger;
     }
 
     @Override
@@ -38,6 +42,8 @@ public class CustomAccessDeniedHandler
             AccessDeniedException accessDeniedException
     ) throws IOException, ServletException {
         errorMetricsService.record("ACCESS_DENIED", HttpStatus.FORBIDDEN,
+                ErrorSource.SECURITY, accessDeniedException);
+        structuredErrorLogger.expected("ACCESS_DENIED", HttpStatus.FORBIDDEN,
                 ErrorSource.SECURITY, accessDeniedException);
 
         ErrorResponse errorResponse =

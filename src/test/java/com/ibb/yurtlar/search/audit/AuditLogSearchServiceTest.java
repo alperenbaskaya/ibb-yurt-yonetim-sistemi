@@ -21,7 +21,8 @@ import com.ibb.yurtlar.observability.ElasticsearchMetricsService;
 class AuditLogSearchServiceTest {
     private final ElasticsearchOperations operations = mock(ElasticsearchOperations.class);
     private final ElasticsearchMetricsService metrics = mock(ElasticsearchMetricsService.class);
-    private final AuditLogSearchService service = new AuditLogSearchService(operations, metrics);
+    private final AuditLogSearchService service = new AuditLogSearchService(
+            operations, metrics, "yurtlar-audit-log-v1");
 
     @Test
     void buildsTextExactDateFiltersAndDeterministicSorting() {

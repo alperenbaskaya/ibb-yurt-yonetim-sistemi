@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.ibb.yurtlar.observability.ElasticsearchMetricsService;
+import org.springframework.beans.factory.annotation.Value;
 
 @Component
 @Profile("!test")
@@ -23,17 +24,20 @@ public class AuditLogIndexConsumer {
     private final AuditLogIndexMapper mapper;
     private final AuditLogSearchRepository repository;
     private final ElasticsearchMetricsService metrics;
+    private final String indexName;
 
     public AuditLogIndexConsumer(
             ObjectMapper objectMapper,
             AuditLogIndexMapper mapper,
             AuditLogSearchRepository repository,
-            ElasticsearchMetricsService metrics
+            ElasticsearchMetricsService metrics,
+            @Value("${app.elasticsearch.audit-index}") String indexName
     ) {
         this.objectMapper = objectMapper;
         this.mapper = mapper;
         this.repository = repository;
         this.metrics = metrics;
+        this.indexName = indexName;
     }
 
     @KafkaListener(
@@ -45,13 +49,15 @@ public class AuditLogIndexConsumer {
         AuditLogRecordedKafkaEvent event = deserialize(record.value());
         process(event);
 
-        log.info(
-                "Audit log Elasticsearch projection indexed."
-                        + " auditLogId={} partition={} offset={}",
-                event.auditLogId(),
-                record.partition(),
-                record.offset()
-        );
+        log.atDebug()
+                .addKeyValue("component", "ELASTICSEARCH")
+                .addKeyValue("operation", "INDEX")
+                .addKeyValue("index", indexName)
+                .addKeyValue("eventType", "AUDIT_LOG_RECORDED")
+                .addKeyValue("consumer", "audit-log-elasticsearch-projection-v1")
+                .addKeyValue("partition", record.partition())
+                .addKeyValue("offset", record.offset())
+                .log("Audit projection indexed");
     }
 
     public void process(AuditLogRecordedKafkaEvent event) {
@@ -61,6 +67,14 @@ public class AuditLogIndexConsumer {
             metrics.indexSuccess();
         } catch (RuntimeException exception) {
             metrics.indexFailure();
+            log.atError()
+                    .addKeyValue("component", "ELASTICSEARCH")
+                    .addKeyValue("operation", "INDEX")
+                    .addKeyValue("index", indexName)
+                    .addKeyValue("eventType", "AUDIT_LOG_RECORDED")
+                    .addKeyValue("exception", exception.getClass().getSimpleName())
+                    .setCause(exception)
+                    .log("Audit projection indexing failed");
             throw exception;
         }
     }

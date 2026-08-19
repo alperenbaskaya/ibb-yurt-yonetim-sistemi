@@ -79,6 +79,15 @@ public class KafkaErrorHandlingConfig {
                             recoverer.accept(record, exception);
                             metrics.deadLetter("DOCUMENT_UPLOADED",
                                     "document-upload-idempotency-group-v1");
+                            log.atError()
+                                    .addKeyValue("component", "KAFKA")
+                                    .addKeyValue("consumer", "document-upload-idempotency-group-v1")
+                                    .addKeyValue("eventType", "DOCUMENT_UPLOADED")
+                                    .addKeyValue("topic", record.topic())
+                                    .addKeyValue("partition", record.partition())
+                                    .addKeyValue("offset", record.offset())
+                                    .addKeyValue("exception", exception.getClass().getSimpleName())
+                                    .log("Kafka record published to DLT");
                         },
                         fixedBackOff
                 );
@@ -87,19 +96,16 @@ public class KafkaErrorHandlingConfig {
                 (record, exception, deliveryAttempt) -> {
                         metrics.processingError("DOCUMENT_UPLOADED",
                                 "document-upload-idempotency-group-v1");
-                        log.warn(
-                                "Kafka delivery başarısız."
-                                        + " topic={}"
-                                        + " partition={}"
-                                        + " offset={}"
-                                        + " attempt={}"
-                                        + " exception={}",
-                                record.topic(),
-                                record.partition(),
-                                record.offset(),
-                                deliveryAttempt,
-                                exception.getClass().getSimpleName()
-                        );
+                        log.atWarn()
+                                .addKeyValue("component", "KAFKA")
+                                .addKeyValue("consumer", "document-upload-idempotency-group-v1")
+                                .addKeyValue("eventType", "DOCUMENT_UPLOADED")
+                                .addKeyValue("topic", record.topic())
+                                .addKeyValue("partition", record.partition())
+                                .addKeyValue("offset", record.offset())
+                                .addKeyValue("deliveryAttempt", deliveryAttempt)
+                                .addKeyValue("exception", exception.getClass().getSimpleName())
+                                .log("Kafka record processing failed");
                 }
         );
 

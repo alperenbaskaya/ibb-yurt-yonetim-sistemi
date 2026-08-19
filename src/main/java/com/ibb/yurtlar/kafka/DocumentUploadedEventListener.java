@@ -63,32 +63,24 @@ public class DocumentUploadedEventListener {
 
             consumerService.process(event);
 
-            log.info(
-                    "DOCUMENT_UPLOADED event işlendi."
-                            + " eventId={}"
-                            + " studentId={}"
-                            + " documentId={}"
-                            + " partition={}"
-                            + " offset={}",
-                    event.eventId(),
-                    event.studentId(),
-                    event.documentId(),
-                    record.partition(),
-                    record.offset()
-            );
+            log.atDebug()
+                    .addKeyValue("component", "KAFKA")
+                    .addKeyValue("consumer", "document-upload-idempotency-group-v1")
+                    .addKeyValue("eventType", "DOCUMENT_UPLOADED")
+                    .addKeyValue("partition", record.partition())
+                    .addKeyValue("offset", record.offset())
+                    .log("Kafka record processed");
 
         } catch (DuplicateKafkaEventException exception) {
             metrics.duplicate("DOCUMENT_UPLOADED", "document-upload-idempotency-group-v1");
 
-            log.info(
-                    "Duplicate Kafka event atlandı."
-                            + " eventId={}"
-                            + " partition={}"
-                            + " offset={}",
-                    event.eventId(),
-                    record.partition(),
-                    record.offset()
-            );
+            log.atInfo()
+                    .addKeyValue("component", "KAFKA")
+                    .addKeyValue("consumer", "document-upload-idempotency-group-v1")
+                    .addKeyValue("eventType", "DOCUMENT_UPLOADED")
+                    .addKeyValue("partition", record.partition())
+                    .addKeyValue("offset", record.offset())
+                    .log("Duplicate Kafka record skipped");
         }
     }
 

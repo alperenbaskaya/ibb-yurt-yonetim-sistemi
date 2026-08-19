@@ -50,6 +50,15 @@ public class AuditLogProjectionKafkaConfig {
                     recoverer.accept(record, exception);
                     metrics.deadLetter("AUDIT_LOG_RECORDED",
                             "audit-log-elasticsearch-projection-v1");
+                    log.atError()
+                            .addKeyValue("component", "KAFKA")
+                            .addKeyValue("consumer", "audit-log-elasticsearch-projection-v1")
+                            .addKeyValue("eventType", "AUDIT_LOG_RECORDED")
+                            .addKeyValue("topic", record.topic())
+                            .addKeyValue("partition", record.partition())
+                            .addKeyValue("offset", record.offset())
+                            .addKeyValue("exception", exception.getClass().getSimpleName())
+                            .log("Kafka record published to DLT");
                 },
                 new FixedBackOff(1000L, 3L)
         );
@@ -60,16 +69,16 @@ public class AuditLogProjectionKafkaConfig {
                 (record, exception, deliveryAttempt) -> {
                         metrics.processingError("AUDIT_LOG_RECORDED",
                                 "audit-log-elasticsearch-projection-v1");
-                        log.warn(
-                                "Audit projection delivery failed."
-                                        + " topic={} partition={} offset={}"
-                                        + " attempt={} exception={}",
-                                record.topic(),
-                                record.partition(),
-                                record.offset(),
-                                deliveryAttempt,
-                                exception.getClass().getSimpleName()
-                        );
+                        log.atWarn()
+                                .addKeyValue("component", "KAFKA")
+                                .addKeyValue("consumer", "audit-log-elasticsearch-projection-v1")
+                                .addKeyValue("eventType", "AUDIT_LOG_RECORDED")
+                                .addKeyValue("topic", record.topic())
+                                .addKeyValue("partition", record.partition())
+                                .addKeyValue("offset", record.offset())
+                                .addKeyValue("deliveryAttempt", deliveryAttempt)
+                                .addKeyValue("exception", exception.getClass().getSimpleName())
+                                .log("Audit projection record processing failed");
                 }
         );
         factory.setCommonErrorHandler(errorHandler);
