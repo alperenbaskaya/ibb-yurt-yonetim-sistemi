@@ -5,6 +5,7 @@ import {
   downloadReviewerDocument,
   getDocumentReviewHistory,
   getMyDocumentReviews,
+  searchMyDocumentReviews,
   getMyReviewerDashboard,
   getMyReviewerStudents,
   getReviewerStudentDocumentProcess,
@@ -19,8 +20,8 @@ export const reviewerQueryKeys = {
     [...reviewerQueryKeys.root(userId), 'dashboard'] as const,
   pendingDocuments: (userId: number) =>
     [...reviewerQueryKeys.root(userId), 'pending-documents'] as const,
-  myReviews: (userId: number) =>
-    [...reviewerQueryKeys.root(userId), 'my-reviews'] as const,
+  myReviews: (userId: number, page?: number, query?: string) =>
+    [...reviewerQueryKeys.root(userId), 'my-reviews', query ?? '', page ?? 0] as const,
   students: (userId: number) =>
     [...reviewerQueryKeys.root(userId), 'students'] as const,
   studentDocumentProcess: (userId: number, studentId: number) =>
@@ -83,6 +84,13 @@ export function useMyDocumentReviews(userId: number) {
   return useQuery({
     queryKey: reviewerQueryKeys.myReviews(userId),
     queryFn: getMyDocumentReviews,
+  })
+}
+
+export function useMyDocumentReviewHistory(userId: number, page: number, query: string) {
+  return useQuery({
+    queryKey: reviewerQueryKeys.myReviews(userId, page, query),
+    queryFn: () => searchMyDocumentReviews(page, query),
   })
 }
 

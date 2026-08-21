@@ -36,6 +36,16 @@ export interface DocumentReviewResponse {
   reviewedAt: string
 }
 
+export interface DocumentReviewPageResponse {
+  items: DocumentReviewResponse[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
 export interface ReviewerDashboardResponse {
   reviewerId: number
   firstName: string

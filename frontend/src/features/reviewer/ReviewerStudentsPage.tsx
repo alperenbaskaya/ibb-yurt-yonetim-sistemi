@@ -1,6 +1,7 @@
 import { GraduationCap, Mail, Search } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PageHeader } from '../../components/common/PageHeader'
+import { Pagination } from '../../components/common/Pagination'
 import { getApiErrorMessage } from '../../utils/apiError'
 import { useAuth } from '../auth/useAuth'
 import { ReviewerPageState } from './ReviewerPageState'
@@ -8,23 +9,42 @@ import { ReviewerStudentProcessDialog } from './ReviewerStudentProcessDialog'
 import { useReviewerStudents } from './reviewerQueries'
 import type { ReviewerStudentResponse } from '../../types/reviewer'
 
+const PAGE_SIZE = 12
+
 export function ReviewerStudentsPage() {
   const { user } = useAuth()
   const studentsQuery = useReviewerStudents(user?.userId ?? 0)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(0)
   const [selectedStudent, setSelectedStudent] = useState<ReviewerStudentResponse | null>(null)
   const normalizedSearch = search.trim().toLocaleLowerCase('tr-TR')
   const students = studentsQuery.data ?? []
-  const visibleStudents = students.filter((student) => {
+  const filteredStudents = useMemo(() => students.filter((student) => {
     if (!normalizedSearch) return true
 
     return [
       student.firstName,
       student.lastName,
+      `${student.firstName} ${student.lastName}`,
       student.email,
       student.identityNumber,
     ].some((value) => value.toLocaleLowerCase('tr-TR').includes(normalizedSearch))
-  })
+  }), [normalizedSearch, students])
+  const totalPages = Math.ceil(filteredStudents.length / PAGE_SIZE)
+  const safePage = Math.min(page, Math.max(totalPages - 1, 0))
+  const visibleStudents = useMemo(
+    () => filteredStudents.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE),
+    [filteredStudents, safePage],
+  )
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, Math.max(totalPages - 1, 0)))
+  }, [totalPages])
+
+  const changeSearch = (value: string) => {
+    setSearch(value)
+    setPage(0)
+  }
 
   return (
     <section>
@@ -71,7 +91,7 @@ export function ReviewerStudentsPage() {
                 id="reviewer-student-search"
                 type="search"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => changeSearch(event.target.value)}
                 className="min-h-11 w-full border border-slate-300 bg-white pl-10 pr-3 text-sm focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 placeholder="Ad, e-posta veya kimlik numarası"
               />
@@ -84,7 +104,7 @@ export function ReviewerStudentsPage() {
               Arama ölçütüyle eşleşen öğrenci bulunamadı.
             </div>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <><div className="grid gap-4 lg:grid-cols-2">
               {visibleStudents.map((student) => (
                 <button type="button" key={student.studentId} onClick={() => setSelectedStudent(student)} aria-label={`${student.firstName} ${student.lastName} belge sürecini görüntüle`} className="w-full border border-slate-200 bg-white p-5 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
                   <div className="flex items-start gap-3">
@@ -107,7 +127,7 @@ export function ReviewerStudentsPage() {
                   <p className="mt-4 text-sm font-semibold text-blue-700">Belge sürecini görüntüle</p>
                 </button>
               ))}
-            </div>
+            </div><Pagination currentPage={safePage} totalPages={totalPages} totalElements={filteredStudents.length} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="öğrenci" className="mt-5" /></>
           )}
         </div>
       )}

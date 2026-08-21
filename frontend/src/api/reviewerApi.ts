@@ -2,6 +2,7 @@ import type { StudentDocumentResponse } from '../types/student'
 import type {
   CreateDocumentReviewRequest,
   DocumentReviewResponse,
+  DocumentReviewPageResponse,
   DownloadedReviewerDocument,
   ReviewerDashboardResponse,
   ReviewerStudentResponse,
@@ -62,6 +63,15 @@ export async function getMyDocumentReviews(): Promise<DocumentReviewResponse[]> 
     '/document-reviews/me',
   )
   return response.data
+}
+
+export async function searchMyDocumentReviews(
+  page: number,
+  query: string,
+): Promise<DocumentReviewPageResponse> {
+  return (await httpClient.get<DocumentReviewPageResponse>('/document-reviews/me/history', {
+    params: { page, size: 12, q: query || undefined },
+  })).data
 }
 
 export async function createDocumentReview(

@@ -1,5 +1,6 @@
 import { CheckCircle2, FileQuestion, FileText, LoaderCircle, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { ReviewerStudentResponse } from '../../types/reviewer'
 import { getApiErrorMessage } from '../../utils/apiError'
 import { ReviewerStatusBadge } from './ReviewerStatusBadge'
@@ -14,6 +15,7 @@ interface ReviewerStudentProcessDialogProps {
 
 export function ReviewerStudentProcessDialog({ userId, student, onClose }: ReviewerStudentProcessDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const navigate = useNavigate()
   const query = useReviewerStudentDocumentProcess(userId, student.studentId)
 
   useEffect(() => {
@@ -30,6 +32,13 @@ export function ReviewerStudentProcessDialog({ userId, student, onClose }: Revie
         : query.data && query.data.uploadedRequiredDocumentCount > 0
           ? { label: 'Değerlendirme Bekliyor', tone: 'info' as const }
           : { label: 'Bekliyor', tone: 'warning' as const }
+
+  const openPendingDocument = (documentTypeId: number) => {
+    onClose()
+    void navigate('/reviewer/documents', {
+      state: { reviewTarget: { studentId: student.studentId, documentTypeId } },
+    })
+  }
 
   return (
     <dialog
@@ -59,7 +68,9 @@ export function ReviewerStudentProcessDialog({ userId, student, onClose }: Revie
               {process.missingRequiredDocumentCount === 0 && !process.completed && <p className="border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">Eksik belge yok.</p>}
               {process.requiredDocuments.length === 0 ? <div className="border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">Aktif dönem için zorunlu belge tanımlanmamış.</div> : <section aria-labelledby="required-process-documents"><h3 id="required-process-documents" className="font-semibold text-slate-950">Zorunlu belgeler</h3><ul className="mt-3 divide-y divide-slate-200 border border-slate-200">{process.requiredDocuments.map((item) => {
                 const presentation = item.status ? reviewerDocumentStatusPresentation[item.status] : { label: 'Henüz yüklenmedi', tone: 'warning' as const }
-                return <li key={item.documentTypeId} className="flex items-center justify-between gap-3 p-4"><span className="flex min-w-0 items-center gap-3">{item.uploaded ? <FileText className="shrink-0 text-blue-700" aria-hidden="true" size={18} /> : <FileQuestion className="shrink-0 text-amber-700" aria-hidden="true" size={18} />}<span className="font-medium text-slate-900">{item.documentTypeName}</span></span><ReviewerStatusBadge label={presentation.label} tone={presentation.tone} /></li>
+                const isPendingReview = item.status === 'UPLOADED'
+                const content = <><span className="flex min-w-0 items-center gap-3">{item.uploaded ? <FileText className="shrink-0 text-blue-700" aria-hidden="true" size={18} /> : <FileQuestion className="shrink-0 text-amber-700" aria-hidden="true" size={18} />}<span className="font-medium text-slate-900">{item.documentTypeName}</span></span><ReviewerStatusBadge label={presentation.label} tone={presentation.tone} /></>
+                return <li key={item.documentTypeId}>{isPendingReview ? <button type="button" onClick={() => openPendingDocument(item.documentTypeId)} className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700" aria-label={`${item.documentTypeName} belgesini değerlendir`}>{content}</button> : <div className="flex items-center justify-between gap-3 p-4">{content}</div>}</li>
               })}</ul></section>}
             </div>
           })()}

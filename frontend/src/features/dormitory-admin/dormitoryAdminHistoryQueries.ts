@@ -6,17 +6,18 @@ import {
 
 export const dormitoryAdminHistoryKeys = {
   root: (userId: number) => ['dormitory-admin-history', userId] as const,
-  page: (userId: number, category: DormitoryHistoryCategory, page: number) =>
-    [...dormitoryAdminHistoryKeys.root(userId), category, page] as const,
+  page: (userId: number, category: DormitoryHistoryCategory, page: number, query: string) =>
+    [...dormitoryAdminHistoryKeys.root(userId), category, query, page] as const,
 }
 
 export function useDormitoryAdminHistory(
   userId: number,
   category: DormitoryHistoryCategory,
   page: number,
+  query: string,
 ) {
   return useQuery({
-    queryKey: dormitoryAdminHistoryKeys.page(userId, category, page),
-    queryFn: () => getDormitoryAdminHistory(category, page),
+    queryKey: dormitoryAdminHistoryKeys.page(userId, category, page, query),
+    queryFn: () => getDormitoryAdminHistory(category, page, query),
   })
 }

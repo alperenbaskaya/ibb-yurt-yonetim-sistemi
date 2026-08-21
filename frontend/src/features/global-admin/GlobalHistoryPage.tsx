@@ -1,6 +1,9 @@
 import { ClipboardCheck, Clock3, Settings, UserRound } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PageHeader } from '../../components/common/PageHeader'
+import { Pagination } from '../../components/common/Pagination'
+import { HistoryPersonSearch } from '../../components/common/HistoryPersonSearch'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import type { Role } from '../../types/auth'
 import type { AuditCategory, AuditLogPageResponse, AuditLogResponse } from '../../types/globalAdmin'
 import { getApiErrorMessage } from '../../utils/apiError'
@@ -21,14 +24,6 @@ const roleLabels: Record<Role, string> = {
 
 function TabButton({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: string }) {
   return <button type="button" role="tab" aria-selected={selected} onClick={onClick} className={`min-h-11 border-b-2 px-4 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${selected ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-600 hover:text-slate-950'}`}>{children}</button>
-}
-
-function Pagination({ data, onPage }: { data: AuditLogPageResponse; onPage: (page: number) => void }) {
-  return <nav className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4" aria-label="Geçmiş sayfaları">
-    <button type="button" disabled={data.first} onClick={() => onPage(data.page - 1)} className="min-h-10 border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="Önceki geçmiş sayfası">Önceki</button>
-    <p className="text-sm font-medium text-slate-600">Sayfa {data.page + 1} / {data.totalPages}</p>
-    <button type="button" disabled={data.last} onClick={() => onPage(data.page + 1)} className="min-h-10 border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="Sonraki geçmiş sayfası">Sonraki</button>
-  </nav>
 }
 
 function HistoryCard({ event }: { event: AuditLogResponse }) {
@@ -58,7 +53,7 @@ function HistoryResults({ query, emptyTitle, emptyMessage, onPage }: { query: { 
   if (query.isLoading) return <AdminPageState state="loading" title="İşlem geçmişi yükleniyor" message="En güncel kayıtlar alınıyor..." />
   if (query.isError) return <AdminPageState state="error" title="İşlem geçmişi alınamadı" message={getApiErrorMessage(query.error, 'İşlem geçmişi alınamadı.')} onRetry={() => void query.refetch()} />
   if (!query.data || query.data.items.length === 0) return <AdminPageState state="empty" title={emptyTitle} message={emptyMessage} />
-  return <div className="mt-6"><p className="mb-3 text-sm text-slate-600">Toplam {query.data.totalElements} kayıt</p><ol className="space-y-3">{query.data.items.map((event) => <HistoryCard key={event.id} event={event} />)}</ol><Pagination data={query.data} onPage={onPage} /></div>
+  return <div className="mt-6"><p className="mb-3 text-sm text-slate-600">Toplam {query.data.totalElements} kayıt</p><ol className="space-y-3">{query.data.items.map((event) => <HistoryCard key={event.id} event={event} />)}</ol><Pagination currentPage={query.data.page} totalPages={query.data.totalPages} totalElements={query.data.totalElements} pageSize={query.data.size} onPageChange={onPage} itemLabel="kayıt" className="mt-5" /></div>
 }
 
 export function GlobalHistoryPage() {
@@ -69,15 +64,33 @@ export function GlobalHistoryPage() {
   const [category, setCategory] = useState<OperationCategory>('STUDENT_ACTIVITY')
   const [operationPage, setOperationPage] = useState(0)
   const [systemPage, setSystemPage] = useState(0)
+  const [operationSearch, setOperationSearch] = useState('')
+  const [systemSearch, setSystemSearch] = useState('')
+  const debouncedOperationSearch = useDebouncedValue(operationSearch)
+  const debouncedSystemSearch = useDebouncedValue(systemSearch)
   const dormitoriesQuery = useDormitories(userId)
   const activeDormitories = (dormitoriesQuery.data ?? []).filter((dormitory) => dormitory.active)
   const selectedDormitory = activeDormitories.find((dormitory) => dormitory.id === dormitoryId) ?? null
-  const operationQuery = useDormitoryOperationHistory(userId, dormitoryId, category, operationPage, mainView === 'DORMITORY')
-  const systemQuery = useSystemManagementHistory(userId, systemPage, mainView === 'SYSTEM')
+  const operationQuery = useDormitoryOperationHistory(userId, dormitoryId, category, operationPage, debouncedOperationSearch, mainView === 'DORMITORY')
+  const systemQuery = useSystemManagementHistory(userId, systemPage, debouncedSystemSearch, mainView === 'SYSTEM')
+
+  useEffect(() => {
+    if (operationQuery.data && operationPage >= operationQuery.data.totalPages && operationQuery.data.totalPages > 0) {
+      setOperationPage(operationQuery.data.totalPages - 1)
+    }
+  }, [operationPage, operationQuery.data])
+
+  useEffect(() => {
+    if (systemQuery.data && systemPage >= systemQuery.data.totalPages && systemQuery.data.totalPages > 0) {
+      setSystemPage(systemQuery.data.totalPages - 1)
+    }
+  }, [systemPage, systemQuery.data])
 
   const changeMainView = (view: MainView) => { setMainView(view); setOperationPage(0); setSystemPage(0) }
   const changeDormitory = (value: string) => { setDormitoryId(value ? Number(value) : null); setOperationPage(0) }
   const changeCategory = (value: OperationCategory) => { setCategory(value); setOperationPage(0) }
+  const changeOperationSearch = (value: string) => { setOperationSearch(value); setOperationPage(0) }
+  const changeSystemSearch = (value: string) => { setSystemSearch(value); setSystemPage(0) }
 
   return <section>
     <PageHeader title="Sistem Geçmişi" description="Yurt operasyonlarını ve sistem yönetimi değişikliklerini kayıtlı tarihsel bilgilerle inceleyin." />
@@ -89,9 +102,9 @@ export function GlobalHistoryPage() {
       {dormitoriesQuery.isSuccess && activeDormitories.length === 0 && <AdminPageState state="empty" title="Aktif yurt bulunmuyor" message="Operasyon geçmişini filtrelemek için aktif bir yurt bulunmalıdır." />}
       {dormitoriesQuery.isSuccess && activeDormitories.length > 0 && <><label htmlFor="history-dormitory" className="block text-sm font-semibold text-slate-800">Yurt</label><select id="history-dormitory" value={dormitoryId ?? ''} onChange={(event) => changeDormitory(event.target.value)} className="mt-2 min-h-11 w-full max-w-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-100"><option value="">Yurt seçiniz</option>{activeDormitories.map((dormitory) => <option key={dormitory.id} value={dormitory.id}>{dormitory.name}</option>)}</select></>}
       {dormitoriesQuery.isSuccess && activeDormitories.length > 0 && dormitoryId === null && <div className="mt-5 border border-slate-200 bg-white p-6 text-center text-sm text-slate-600">İşlem geçmişini görüntülemek için önce bir yurt seçin.</div>}
-      {selectedDormitory && <><div className="mt-6 border border-slate-200 bg-slate-50 p-4"><p className="font-semibold text-slate-950">{selectedDormitory.name}</p><p className="mt-1 text-sm text-slate-600">Seçilen yurdun kayıtlı operasyon geçmişi</p></div><div className="mt-4 border-b border-slate-200" role="tablist" aria-label="Yurt operasyon kategorisi"><TabButton selected={category === 'STUDENT_ACTIVITY'} onClick={() => changeCategory('STUDENT_ACTIVITY')}>Öğrenci İşlemleri</TabButton><TabButton selected={category === 'REVIEWER_ACTIVITY'} onClick={() => changeCategory('REVIEWER_ACTIVITY')}>Değerlendirici İşlemleri</TabButton></div><div role="tabpanel"><HistoryResults query={operationQuery} emptyTitle={category === 'STUDENT_ACTIVITY' ? 'Öğrenci işlemi bulunmuyor' : 'Değerlendirici işlemi bulunmuyor'} emptyMessage={category === 'STUDENT_ACTIVITY' ? 'Bu yurt için kayıtlı öğrenci işlemi yok.' : 'Bu yurt için kayıtlı değerlendirici işlemi yok.'} onPage={setOperationPage} /></div></>}
+      {selectedDormitory && <><div className="mt-6 border border-slate-200 bg-slate-50 p-4"><p className="font-semibold text-slate-950">{selectedDormitory.name}</p><p className="mt-1 text-sm text-slate-600">Seçilen yurdun kayıtlı operasyon geçmişi</p></div><div className="mt-4 border-b border-slate-200" role="tablist" aria-label="Yurt operasyon kategorisi"><TabButton selected={category === 'STUDENT_ACTIVITY'} onClick={() => changeCategory('STUDENT_ACTIVITY')}>Öğrenci İşlemleri</TabButton><TabButton selected={category === 'REVIEWER_ACTIVITY'} onClick={() => changeCategory('REVIEWER_ACTIVITY')}>Değerlendirici İşlemleri</TabButton></div><HistoryPersonSearch value={operationSearch} onChange={changeOperationSearch} /><div role="tabpanel"><HistoryResults query={operationQuery} emptyTitle={operationSearch ? 'Aramanızla eşleşen geçmiş kaydı bulunamadı' : category === 'STUDENT_ACTIVITY' ? 'Öğrenci işlemi bulunmuyor' : 'Değerlendirici işlemi bulunmuyor'} emptyMessage={operationSearch ? 'Arama metnini değiştirerek tekrar deneyin.' : category === 'STUDENT_ACTIVITY' ? 'Bu yurt için kayıtlı öğrenci işlemi yok.' : 'Bu yurt için kayıtlı değerlendirici işlemi yok.'} onPage={setOperationPage} /></div></>}
     </div>}
 
-    {mainView === 'SYSTEM' && <div role="tabpanel"><HistoryResults query={systemQuery} emptyTitle="Sistem yönetimi kaydı bulunmuyor" emptyMessage="Henüz kayıtlı bir sistem yönetimi işlemi yok." onPage={setSystemPage} /></div>}
+    {mainView === 'SYSTEM' && <div role="tabpanel"><HistoryPersonSearch value={systemSearch} onChange={changeSystemSearch} /><HistoryResults query={systemQuery} emptyTitle={systemSearch ? 'Aramanızla eşleşen geçmiş kaydı bulunamadı' : 'Sistem yönetimi kaydı bulunmuyor'} emptyMessage={systemSearch ? 'Arama metnini değiştirerek tekrar deneyin.' : 'Henüz kayıtlı bir sistem yönetimi işlemi yok.'} onPage={setSystemPage} /></div>}
   </section>
 }

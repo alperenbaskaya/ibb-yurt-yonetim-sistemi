@@ -11,9 +11,10 @@ export const globalHistoryKeys = {
     dormitoryId: number,
     category: DormitoryOperationCategory,
     page: number,
-  ) => [...globalHistoryKeys.root(userId), 'dormitory', dormitoryId, category, page] as const,
-  system: (userId: number, page: number) =>
-    [...globalHistoryKeys.root(userId), 'system', page] as const,
+    query: string,
+  ) => [...globalHistoryKeys.root(userId), 'dormitory', dormitoryId, category, query, page] as const,
+  system: (userId: number, page: number, query: string) =>
+    [...globalHistoryKeys.root(userId), 'system', query, page] as const,
 }
 
 export function useDormitoryOperationHistory(
@@ -21,11 +22,12 @@ export function useDormitoryOperationHistory(
   dormitoryId: number | null,
   category: DormitoryOperationCategory,
   page: number,
+  query: string,
   enabled: boolean,
 ) {
   return useQuery({
-    queryKey: globalHistoryKeys.dormitory(userId, dormitoryId ?? 0, category, page),
-    queryFn: () => api.getDormitoryOperationHistory(dormitoryId!, category, page),
+    queryKey: globalHistoryKeys.dormitory(userId, dormitoryId ?? 0, category, page, query),
+    queryFn: () => api.getDormitoryOperationHistory(dormitoryId!, category, page, query),
     enabled: enabled && dormitoryId !== null,
   })
 }
@@ -33,11 +35,12 @@ export function useDormitoryOperationHistory(
 export function useSystemManagementHistory(
   userId: number,
   page: number,
+  query: string,
   enabled: boolean,
 ) {
   return useQuery({
-    queryKey: globalHistoryKeys.system(userId, page),
-    queryFn: () => api.getSystemManagementHistory(page),
+    queryKey: globalHistoryKeys.system(userId, page, query),
+    queryFn: () => api.getSystemManagementHistory(page, query),
     enabled,
   })
 }
