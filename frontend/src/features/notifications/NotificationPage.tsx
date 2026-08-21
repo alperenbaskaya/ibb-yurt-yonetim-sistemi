@@ -1,7 +1,8 @@
-import { Bell, Check, CheckCheck, ChevronLeft, ChevronRight, Inbox, LoaderCircle } from 'lucide-react'
-import { useState } from 'react'
+import { Bell, Check, CheckCheck, Inbox, LoaderCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { PageHeader } from '../../components/common/PageHeader'
+import { Pagination } from '../../components/common/Pagination'
 import type { NotificationResponse } from '../../types/notification'
 import { getApiErrorMessage } from '../../utils/apiError'
 import { formatDateTime } from '../../utils/formatDateTime'
@@ -120,6 +121,12 @@ export function NotificationPage() {
   const unreadCount = unreadCountQuery.data?.unreadCount ?? 0
   const changeFilter = (nextFilter: NotificationFilter) => { setFilter(nextFilter); setPage(0) }
 
+  useEffect(() => {
+    if (notificationsQuery.data && page >= notificationsQuery.data.totalPages && notificationsQuery.data.totalPages > 0) {
+      setPage(notificationsQuery.data.totalPages - 1)
+    }
+  }, [notificationsQuery.data, page])
+
   const handleMarkRead = (notificationId: number) => {
     markReadMutation.mutate(notificationId, {
       onSuccess: () => { if (filter === 'UNREAD') setPage(0); toast.success('Bildirim okundu olarak işaretlendi.') },
@@ -232,11 +239,7 @@ export function NotificationPage() {
               onMarkRead={handleMarkRead}
             />
           ))}</div>
-          <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4">
-            <button type="button" disabled={notificationsQuery.data.first} onClick={() => setPage(current => current - 1)} className="inline-flex min-h-9 items-center gap-1 border border-slate-300 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50"><ChevronLeft size={16}/>Önceki</button>
-            <p className="text-sm font-medium text-slate-600">Sayfa {notificationsQuery.data.page + 1} / {notificationsQuery.data.totalPages}</p>
-            <button type="button" disabled={notificationsQuery.data.last} onClick={() => setPage(current => current + 1)} className="inline-flex min-h-9 items-center gap-1 border border-slate-300 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50">Sonraki<ChevronRight size={16}/></button>
-          </div>
+          <Pagination currentPage={notificationsQuery.data.page} totalPages={notificationsQuery.data.totalPages} totalElements={notificationsQuery.data.totalElements} pageSize={notificationsQuery.data.size} onPageChange={setPage} itemLabel="bildirim" className="mt-5" />
         </div>
       )}
     </section>

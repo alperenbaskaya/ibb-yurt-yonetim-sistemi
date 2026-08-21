@@ -4,11 +4,12 @@ import type {
   NotificationPageResponse,
 } from '../types/notification'
 import { httpClient } from './httpClient'
+import { HISTORY_PAGE_SIZE } from '../utils/pagination'
 
 export async function getMyNotifications(page: number, unreadOnly: boolean): Promise<NotificationPageResponse> {
   const response = await httpClient.get<NotificationPageResponse>(
     unreadOnly ? '/notifications/me/unread' : '/notifications/me',
-    { params: { page, size: 10 } },
+    { params: { page, size: HISTORY_PAGE_SIZE } },
   )
   return response.data
 }
