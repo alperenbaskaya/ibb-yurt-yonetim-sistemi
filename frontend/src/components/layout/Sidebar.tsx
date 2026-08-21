@@ -1,8 +1,9 @@
-import { Building2, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import type { UserCategory } from '../../types/userCategory'
 import { navigationByCategory } from '../../router/navigation'
 import { userCategoryLabels } from '../../utils/userCategory'
+import { AppBrand } from '../common/AppBrand'
 
 interface SidebarProps {
   category: UserCategory
@@ -36,15 +37,7 @@ export function Sidebar({ category, isOpen, onClose }: SidebarProps) {
             onClick={onClose}
             className="flex items-center gap-3 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700"
           >
-            <span className="flex size-10 items-center justify-center bg-blue-800 text-white">
-              <Building2 aria-hidden="true" size={22} />
-            </span>
-            <span className="leading-tight">
-              <span className="block text-sm font-semibold text-slate-950">
-                Yurt Belge
-              </span>
-              <span className="block text-sm text-slate-600">Yönetim Sistemi</span>
-            </span>
+            <AppBrand />
           </NavLink>
 
           <button

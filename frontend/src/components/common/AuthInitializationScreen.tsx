@@ -1,4 +1,5 @@
-import { Building2, LoaderCircle, RotateCw } from 'lucide-react'
+import { LoaderCircle, RotateCw } from 'lucide-react'
+import { AppBrand } from './AppBrand'
 
 interface AuthInitializationScreenProps {
   errorMessage?: string | null
@@ -15,8 +16,8 @@ export function AuthInitializationScreen({
         className="w-full max-w-md border border-slate-200 bg-white p-8 text-center shadow-sm"
         aria-live="polite"
       >
-        <div className="mx-auto mb-5 flex size-12 items-center justify-center bg-blue-50 text-blue-700">
-          <Building2 aria-hidden="true" size={25} />
+        <div className="mb-5 flex justify-center">
+          <AppBrand variant="compact" size="md" />
         </div>
 
         {errorMessage ? (

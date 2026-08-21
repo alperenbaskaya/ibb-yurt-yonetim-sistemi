@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Yurt Belge Yönetim ve Değerlendirme Sistemi" />
     <title>Yurt Belge Yönetim Sistemi</title>
+    <script>
+      (() => {
+        const storedTheme = localStorage.getItem('yurt-theme')
+        const useDarkTheme =
+          storedTheme === 'dark' ||
+          (storedTheme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+        document.documentElement.classList.toggle('dark', useDarkTheme)
+        document.documentElement.style.colorScheme = useDarkTheme ? 'dark' : 'light'
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

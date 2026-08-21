@@ -5,7 +5,15 @@ import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import App from './App'
 import { AuthProvider } from './features/auth/AuthContext'
+import { ThemeProvider } from './features/theme/ThemeContext'
+import { useTheme } from './features/theme/useTheme'
 import './index.css'
+
+function ThemedToaster() {
+  const { theme } = useTheme()
+
+  return <Toaster position="top-right" richColors theme={theme} />
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,13 +26,15 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-        <Toaster position="top-right" richColors />
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+          <ThemedToaster />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   ListChecks,
   History,
+  FlaskConical,
   UserCheck,
   UserRound,
   Users,
@@ -24,6 +25,8 @@ export interface NavigationItem {
   path: string
   icon: LucideIcon
 }
+
+export const testCenterEnabled = import.meta.env.DEV
 
 const sharedItems = {
   home: { label: 'Ana Sayfa', path: '/home', icon: Home },
@@ -129,6 +132,9 @@ export const navigationByCategory: Record<
       icon: FileText,
     },
     { label: 'Sistem Geçmişi', path: '/global/history', icon: History },
+    ...(testCenterEnabled
+      ? [{ label: 'Test Merkezi', path: '/global/test-center', icon: FlaskConical }]
+      : []),
     sharedItems.notifications,
     sharedItems.profile,
   ],

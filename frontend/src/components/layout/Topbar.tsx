@@ -5,6 +5,7 @@ import { useMyUnreadCount } from '../../features/notifications/notificationQueri
 import type { UserCategory } from '../../types/userCategory'
 import { getPageTitle } from '../../router/navigation'
 import { userCategoryLabels } from '../../utils/userCategory'
+import { ThemeToggle } from '../common/ThemeToggle'
 
 interface TopbarProps {
   category: UserCategory
@@ -44,6 +45,8 @@ export function Topbar({ category, onOpenSidebar }: TopbarProps) {
       </div>
 
       <div className="ml-3 flex items-center gap-2 sm:gap-3">
+        <ThemeToggle />
+
         <Link
           to="/notifications"
           className="relative flex size-10 items-center justify-center text-slate-600 hover:bg-slate-100 hover:text-blue-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700"
