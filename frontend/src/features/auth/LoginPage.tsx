@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
-  Building2,
   Eye,
   EyeOff,
   LoaderCircle,
@@ -13,6 +12,8 @@ import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { useAuth } from './useAuth'
 import { getApiErrorMessage } from '../../utils/apiError'
+import { AppBrand } from '../../components/common/AppBrand'
+import { ThemeToggle } from '../../components/common/ThemeToggle'
 
 const loginSchema = z.object({
   email: z
@@ -61,52 +62,40 @@ export function LoginPage() {
 
   return (
     <main className="grid min-h-screen bg-slate-50 lg:grid-cols-[minmax(0,1fr)_minmax(480px,0.72fr)]">
-      <section className="hidden border-r border-blue-900/15 bg-blue-950 px-12 py-14 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center border border-white/20 bg-white/10">
-            <Building2 aria-hidden="true" size={24} />
-          </div>
-          <div>
-            <p className="font-semibold">Yurt Belge Yönetim Sistemi</p>
-            <p className="text-sm text-blue-100">İstanbul Büyükşehir Belediyesi</p>
-          </div>
+      <section className="relative hidden overflow-hidden border-r border-blue-900/15 bg-blue-950 px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-16">
+        <div className="relative w-fit">
+          <AppBrand size="lg" tone="inverse" />
         </div>
 
-        <div className="max-w-xl pb-10">
+        <div className="relative max-w-xl border-l-2 border-blue-400 pl-7">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-200">
             Kurumsal Yönetim Platformu
           </p>
           <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight xl:text-5xl">
-            Yurt belge süreçlerini güvenli ve düzenli biçimde yönetin.
+            Yurt hizmetlerine ait belge süreçlerini tek merkezden yönetin.
           </h1>
-          <p className="mt-6 max-w-lg text-base leading-7 text-blue-100">
-            Öğrenci belgelerinin yüklenmesi, incelenmesi ve kurumsal
-            değerlendirme süreçleri için merkezi sistem.
+          <p className="mt-6 max-w-lg text-lg leading-8 text-blue-100">
+            İstanbul Büyükşehir Belediyesi Yurt Hizmetleri
           </p>
         </div>
 
-        <p className="text-sm text-blue-200">
-          Yetkili kullanıcı erişimi
-        </p>
+        <div className="relative flex items-center gap-3 text-sm text-blue-200">
+          <span aria-hidden="true" className="h-px w-8 bg-blue-400" />
+          <span>Yetkili kullanıcı erişimi</span>
+        </div>
       </section>
 
-      <section className="flex items-center justify-center px-5 py-10 sm:px-10">
-        <div className="w-full max-w-md border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
+      <section className="relative flex items-center justify-center px-5 py-10 sm:px-10">
+        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1.5 bg-blue-700 lg:hidden" />
+        <ThemeToggle className="absolute right-5 top-5 sm:right-8 sm:top-8" />
+        <div className="w-full max-w-md border border-slate-200 bg-white p-7 shadow-lg shadow-slate-200/60 sm:p-9">
           <div className="mb-8 lg:hidden">
-            <div className="mb-5 flex size-11 items-center justify-center bg-blue-50 text-blue-800">
-              <Building2 aria-hidden="true" size={24} />
-            </div>
-            <p className="text-sm font-semibold text-blue-800">
-              İstanbul Büyükşehir Belediyesi
-            </p>
+            <AppBrand size="md" />
           </div>
 
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-700">
-              Güvenli Giriş
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              Hesabınıza giriş yapın
+            <h2 className="text-3xl font-semibold tracking-tight text-slate-950">
+              Kullanıcı Girişi
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
               Yurt Belge Yönetim Sistemi'ne kurumsal hesap bilgilerinizle
