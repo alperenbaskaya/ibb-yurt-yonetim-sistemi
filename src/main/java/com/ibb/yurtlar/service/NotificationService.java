@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.NotificationResponse;
 import com.ibb.yurtlar.dto.NotificationUnreadCountResponse;
 import com.ibb.yurtlar.dto.NotificationPageResponse;
@@ -7,9 +11,6 @@ import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.Notification;
 import com.ibb.yurtlar.enums.NotificationReferenceType;
 import com.ibb.yurtlar.enums.NotificationType;
-import com.ibb.yurtlar.exception.UserNotFoundException;
-import com.ibb.yurtlar.exception.NotificationNotFoundException;
-import com.ibb.yurtlar.exception.InvalidNotificationPageRequestException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.NotificationRepository;
 import org.springframework.security.access.AccessDeniedException;
@@ -57,7 +58,7 @@ public class NotificationService {
                                 recipientUserId
                         )
                         .orElseThrow(
-                                () -> new UserNotFoundException(
+                                () -> new BusinessException(USER_NOT_FOUND,
                                         recipientUserId
                                 )
                         );
@@ -221,7 +222,7 @@ public class NotificationService {
                                 notificationId
                         )
                         .orElseThrow(
-                                () -> new NotificationNotFoundException(
+                                () -> new BusinessException(NOTIFICATION_NOT_FOUND,
                                         notificationId
                                 )
                         );
@@ -319,7 +320,7 @@ public class NotificationService {
 
     private void validatePage(int page, int size) {
         if (page < 0 || size < 1 || size > 100) {
-            throw new InvalidNotificationPageRequestException(
+            throw new BusinessException(INVALID_NOTIFICATION_PAGE_REQUEST,
                     "Sayfa 0 veya daha büyük, sayfa boyutu 1 ile 100 arasında olmalıdır."
             );
         }

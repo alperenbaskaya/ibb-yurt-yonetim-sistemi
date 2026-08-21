@@ -1,0 +1,151 @@
+package com.ibb.yurtlar.kafka;
+
+import com.ibb.yurtlar.entity.OutboxEvent;
+import com.ibb.yurtlar.enums.OutboxEventStatus;
+import com.ibb.yurtlar.repository.OutboxEventRepository;
+import com.ibb.yurtlar.service.OutboxEventService;
+import com.ibb.yurtlar.observability.OutboxMetricsService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+@Component
+public class OutboxPublisher {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(
+                    OutboxPublisher.class
+            );
+
+    private static final int BATCH_SIZE = 20;
+
+    private final OutboxEventRepository outboxEventRepository;
+    private final OutboxEventService outboxEventService;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final OutboxMetricsService metrics;
+
+    public OutboxPublisher(
+            OutboxEventRepository outboxEventRepository,
+            OutboxEventService outboxEventService,
+            KafkaTemplate<String, String> kafkaTemplate,
+            OutboxMetricsService metrics
+    ) {
+        this.outboxEventRepository =
+                outboxEventRepository;
+
+        this.outboxEventService =
+                outboxEventService;
+
+        this.kafkaTemplate =
+                kafkaTemplate;
+        this.metrics = metrics;
+    }
+
+    @Scheduled(
+            fixedDelayString =
+                    "${outbox.publisher.fixed-delay-ms:2000}",
+            initialDelayString =
+                    "${outbox.publisher.initial-delay-ms:3000}"
+    )
+    public void publishPendingEvents() {
+
+        List<OutboxEvent> pendingEvents =
+                outboxEventRepository
+                        .findByStatusOldestFirst(
+                                OutboxEventStatus.PENDING,
+                                PageRequest.of(
+                                        0,
+                                        BATCH_SIZE
+                                )
+                        );
+
+        for (OutboxEvent event : pendingEvents) {
+
+            boolean published =
+                    publish(event);
+
+            if (!published) {
+                break;
+            }
+        }
+    }
+
+    private boolean publish(
+            OutboxEvent event
+    ) {
+
+        try {
+
+            kafkaTemplate
+                    .send(
+                            event.getTopic(),
+                            event.getEventKey(),
+                            event.getPayload()
+                    )
+                    .get(5, TimeUnit.SECONDS);
+
+            outboxEventService
+                    .markPublished(
+                            event.getId()
+                    );
+            metrics.publishSuccess();
+
+            log.atDebug()
+                    .addKeyValue("component", "OUTBOX")
+                    .addKeyValue("eventType", event.getEventType())
+                    .addKeyValue("topic", event.getTopic())
+                    .log("Outbox event published");
+
+            return true;
+
+        } catch (InterruptedException exception) {
+            metrics.publishFailure();
+
+            Thread.currentThread().interrupt();
+
+            log.atError()
+                    .addKeyValue("component", "OUTBOX")
+                    .addKeyValue("eventType", event.getEventType())
+                    .addKeyValue("topic", event.getTopic())
+                    .addKeyValue("exception", exception.getClass().getSimpleName())
+                    .setCause(exception)
+                    .log("Outbox publisher interrupted");
+
+            return false;
+
+        } catch (
+                ExecutionException
+                | TimeoutException exception
+        ) {
+            metrics.publishFailure();
+
+            log.atError()
+                    .addKeyValue("component", "OUTBOX")
+                    .addKeyValue("eventType", event.getEventType())
+                    .addKeyValue("topic", event.getTopic())
+                    .addKeyValue("exception", exception.getClass().getSimpleName())
+                    .setCause(exception)
+                    .log("Outbox publish failed; event remains pending");
+
+            return false;
+        } catch (RuntimeException exception) {
+            metrics.publishFailure();
+            log.atError()
+                    .addKeyValue("component", "OUTBOX")
+                    .addKeyValue("eventType", event.getEventType())
+                    .addKeyValue("topic", event.getTopic())
+                    .addKeyValue("exception", exception.getClass().getSimpleName())
+                    .setCause(exception)
+                    .log("Outbox publish operation failed");
+            throw exception;
+        }
+    }
+}

@@ -1,0 +1,33 @@
+{
+  "dynamic": "strict",
+  "properties": {
+    "auditLogId": { "type": "long" },
+    "actorUserId": { "type": "long" },
+    "actorName": {
+      "type": "text",
+      "fields": { "keyword": { "type": "keyword" } }
+    },
+    "actorRole": { "type": "keyword" },
+    "subjectStudentId": { "type": "long" },
+    "subjectStudentName": {
+      "type": "text",
+      "fields": { "keyword": { "type": "keyword" } }
+    },
+    "dormitoryId": { "type": "long" },
+    "dormitoryName": {
+      "type": "text",
+      "fields": { "keyword": { "type": "keyword" } }
+    },
+    "category": { "type": "keyword" },
+    "action": { "type": "keyword" },
+    "entityType": { "type": "keyword" },
+    "entityId": { "type": "long" },
+    "targetLabel": {
+      "type": "text",
+      "fields": { "keyword": { "type": "keyword" } }
+    },
+    "description": { "type": "text" },
+    "createdAt": { "type": "date" },
+    "schemaVersion": { "type": "integer" }
+  }
+}

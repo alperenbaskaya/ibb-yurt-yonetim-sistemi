@@ -66,4 +66,17 @@ public class DocumentReviewController {
                         authentication.getName()
                 );
     }
+
+    @GetMapping("/me/history")
+    @PreAuthorize("hasRole('REVIEWER')")
+    public com.ibb.yurtlar.dto.DocumentReviewPageResponse searchMyReviews(
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            Authentication authentication
+    ) {
+        return documentReviewService.searchMyReviews(
+                authentication.getName(), q, page, size
+        );
+    }
 }

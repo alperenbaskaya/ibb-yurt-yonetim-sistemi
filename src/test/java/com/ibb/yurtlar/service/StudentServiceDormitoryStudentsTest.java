@@ -1,12 +1,14 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.Dormitory;
 import com.ibb.yurtlar.entity.DormitoryTerm;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
-import com.ibb.yurtlar.exception.UserIsNotAdminException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DormitoryTermRepository;
 import com.ibb.yurtlar.repository.StudentRepository;
@@ -81,7 +83,7 @@ class StudentServiceDormitoryStudentsTest {
                 .thenReturn(Optional.of(reviewer));
 
         assertThrows(
-                UserIsNotAdminException.class,
+                BusinessException.class,
                 () -> service.getAll("reviewer@example.com")
         );
     }
@@ -93,7 +95,7 @@ class StudentServiceDormitoryStudentsTest {
                 .thenReturn(Optional.of(admin));
 
         assertThrows(
-                InvalidAdminConfigurationException.class,
+                BusinessException.class,
                 () -> service.getAll("admin@example.com")
         );
     }

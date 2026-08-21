@@ -1,0 +1,97 @@
+local.file_match "yurtlar_backend" {
+  path_targets = [{
+    "__path__"    = "/var/log/yurtlar/*.json",
+    "service"     = "yurtlar",
+    "environment" = "local",
+  }]
+}
+
+loki.source.file "yurtlar_backend" {
+  targets    = local.file_match.yurtlar_backend.targets
+  forward_to = [loki.process.yurtlar_backend.receiver]
+}
+
+loki.process "yurtlar_backend" {
+  stage.json {
+    expressions = {
+      service       = "service",
+      environment   = "environment",
+      level         = "level",
+      component     = "component",
+      errorCode     = "errorCode",
+      errorCategory = "errorCategory",
+      errorSeverity = "errorSeverity",
+      errorSource   = "errorSource",
+      eventType     = "eventType",
+      consumer      = "consumer",
+      operation     = "operation",
+      index         = "index",
+      exception     = "exception",
+      traceId       = "traceId",
+      spanId        = "spanId",
+    }
+  }
+
+  stage.labels {
+    values = {
+      service     = "service",
+      environment = "environment",
+      level       = "level",
+      component   = "component",
+    }
+  }
+
+  stage.structured_metadata {
+    values = {
+      errorCode     = "errorCode",
+      errorCategory = "errorCategory",
+      errorSeverity = "errorSeverity",
+      errorSource   = "errorSource",
+      eventType     = "eventType",
+      consumer      = "consumer",
+      operation     = "operation",
+      index         = "index",
+      exception     = "exception",
+      traceId       = "traceId",
+      spanId        = "spanId",
+    }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+otelcol.receiver.otlp "yurtlar_traces" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.yurtlar_traces.input]
+  }
+}
+
+otelcol.processor.batch "yurtlar_traces" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+
+    tls {
+      insecure = true
+    }
+  }
+}

@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.StoredFileInfo;
 import com.ibb.yurtlar.dto.StudentDocumentResponse;
 import com.ibb.yurtlar.entity.Admission;
@@ -12,13 +16,6 @@ import com.ibb.yurtlar.enums.StudentDocumentStatus;
 import com.ibb.yurtlar.enums.AuditAction;
 import com.ibb.yurtlar.enums.AuditCategory;
 import com.ibb.yurtlar.enums.AuditEntityType;
-import com.ibb.yurtlar.exception.AdmissionNotApprovedException;
-import com.ibb.yurtlar.exception.AdmissionNotFoundException;
-import com.ibb.yurtlar.exception.DocumentNotRequiredForTermException;
-import com.ibb.yurtlar.exception.DocumentUploadClosedException;
-import com.ibb.yurtlar.exception.InactiveDocumentTypeException;
-import com.ibb.yurtlar.exception.InactiveDormitoryTermException;
-import com.ibb.yurtlar.exception.StudentDocumentNotFoundException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.StudentDocumentRepository;
@@ -32,21 +29,14 @@ import org.springframework.core.io.Resource;
 import com.ibb.yurtlar.dto.StudentDocumentRequirementStatusResponse;
 import com.ibb.yurtlar.dto.DocumentCompletionResponse;
 import com.ibb.yurtlar.mapper.StudentDocumentMapper;
-import com.ibb.yurtlar.exception.ActiveAdmissionNotFoundForCurrentStudentException;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.Dormitory;
 import com.ibb.yurtlar.enums.AdminScope;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
-import com.ibb.yurtlar.exception.StudentDocumentAccessDeniedException;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.InvalidUserConfigurationException;
-import com.ibb.yurtlar.exception.InvalidDocumentReplacementStateException;
-import com.ibb.yurtlar.exception.UserIsNotReviewerException;
-import com.ibb.yurtlar.exception.AdmissionAccessDeniedException;
-import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
 import com.ibb.yurtlar.enums.NotificationReferenceType;
 import com.ibb.yurtlar.enums.NotificationType;
+import com.ibb.yurtlar.kafka.event.DocumentUploadedEvent;
+import java.util.UUID;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -74,7 +64,10 @@ public class StudentDocumentService {
     private final DormitoryTermRepository dormitoryTermRepository;
 
     private final NotificationService notificationService;
+
     private final AuditLogService auditLogService;
+
+    private final OutboxEventService outboxEventService;
 
     public StudentDocumentService(
             StudentDocumentRepository studentDocumentRepository,
@@ -86,7 +79,8 @@ public class StudentDocumentService {
             AppUserRepository appUserRepository,
             DormitoryTermRepository dormitoryTermRepository,
             NotificationService notificationService,
-            AuditLogService auditLogService
+            AuditLogService auditLogService,
+            OutboxEventService outboxEventService
     ) {
         this.studentDocumentRepository =
                 studentDocumentRepository;
@@ -113,6 +107,7 @@ public class StudentDocumentService {
         this.notificationService = notificationService;
         this.auditLogService = auditLogService;
 
+        this.outboxEventService = outboxEventService;
     }
 
     @Transactional
@@ -140,7 +135,7 @@ public class StudentDocumentService {
                                 documentTypeId
                         )
                         .orElseThrow(
-                                () -> new DocumentNotRequiredForTermException(
+                                () -> new BusinessException(DOCUMENT_NOT_REQUIRED_FOR_TERM,
                                         term.getId(),
                                         documentTypeId
                                 )
@@ -150,7 +145,7 @@ public class StudentDocumentService {
                 requirement.getDocumentType();
 
         if (!documentType.isActive()) {
-            throw new InactiveDocumentTypeException(
+            throw new BusinessException(INACTIVE_DOCUMENT_TYPE,
                     documentType.getId()
             );
         }
@@ -224,7 +219,7 @@ public class StudentDocumentService {
             Long admissionId
     ) {
         if (!admissionRepository.existsById(admissionId)) {
-            throw new AdmissionNotFoundException(admissionId);
+            throw new BusinessException(ADMISSION_NOT_FOUND, admissionId);
         }
 
         return studentDocumentRepository
@@ -268,7 +263,7 @@ public class StudentDocumentService {
         if (admission.getStatus()
                 != AdmissionStatus.APPROVED) {
 
-            throw new AdmissionNotApprovedException(
+            throw new BusinessException(ADMISSION_NOT_APPROVED,
                     admission.getId()
             );
         }
@@ -277,7 +272,7 @@ public class StudentDocumentService {
                 admission.getDormitoryTerm();
 
         if (!term.isActive()) {
-            throw new InactiveDormitoryTermException(
+            throw new BusinessException(INACTIVE_DORMITORY_TERM,
                     term.getId()
             );
         }
@@ -295,7 +290,7 @@ public class StudentDocumentService {
                 );
 
         if (beforeUploadStart || afterUploadEnd) {
-            throw new DocumentUploadClosedException();
+            throw new BusinessException(DOCUMENT_UPLOAD_CLOSED);
         }
     }
 
@@ -304,40 +299,22 @@ public class StudentDocumentService {
             DocumentType documentType,
             StoredFileInfo storedFileInfo
     ) {
-        StudentDocument document =
-                new StudentDocument();
+        StudentDocument document = new StudentDocument();
 
-        document.setAdmission(
-                admission
-        );
+        document.setAdmission(admission);
 
-        document.setDocumentType(
-                documentType
-        );
+        document.setDocumentType(documentType);
 
-        applyStoredFileInfo(
-                document,
-                storedFileInfo
-        );
+        applyStoredFileInfo(document, storedFileInfo);
 
-        document.setStatus(
-                StudentDocumentStatus.UPLOADED
-        );
+        document.setStatus(StudentDocumentStatus.UPLOADED);
 
-        StudentDocument savedDocument =
-                studentDocumentRepository
-                        .save(
-                                document
-                        );
+        StudentDocument savedDocument = studentDocumentRepository.save(document);
+        recordDocumentUploadedOutbox(savedDocument);
 
-        createReviewerUploadNotification(
-                savedDocument
-        );
+        createReviewerUploadNotification(savedDocument);
 
-        return studentDocumentMapper
-                .toResponse(
-                        savedDocument
-                );
+        return studentDocumentMapper.toResponse(savedDocument);
     }
 
     private StudentDocumentResponse replaceExistingDocument(
@@ -385,7 +362,7 @@ public class StudentDocumentService {
         if (document.getStatus()
                 != StudentDocumentStatus.REVISION_REQUIRED) {
 
-            throw new InvalidDocumentReplacementStateException(
+            throw new BusinessException(DOCUMENT_REPLACEMENT_NOT_ALLOWED,
                     document.getId(),
                     document.getStatus()
             );
@@ -421,7 +398,7 @@ public class StudentDocumentService {
         return studentDocumentRepository
                 .findById(id)
                 .orElseThrow(
-                        () -> new StudentDocumentNotFoundException(
+                        () -> new BusinessException(STUDENT_DOCUMENT_NOT_FOUND,
                                 id
                         )
                 );
@@ -470,7 +447,7 @@ public class StudentDocumentService {
                 );
 
         if (reviewer.getRole() != Role.REVIEWER) {
-            throw new UserIsNotReviewerException(
+            throw new BusinessException(USER_IS_NOT_REVIEWER,
                     reviewer.getId()
             );
         }
@@ -479,7 +456,7 @@ public class StudentDocumentService {
                 reviewer.getDormitory();
 
         if (reviewerDormitory == null) {
-            throw new InvalidUserConfigurationException(
+            throw new BusinessException(INVALID_USER_CONFIGURATION,
                     "Reviewer kullanıcısına bir yurt atanmamıştır."
             );
         }
@@ -697,7 +674,7 @@ public class StudentDocumentService {
                         studentEmail
                 )
                 .orElseThrow(
-                        ActiveAdmissionNotFoundForCurrentStudentException::new
+                        () -> new BusinessException(ACTIVE_ADMISSION_NOT_FOUND_FOR_CURRENT_STUDENT)
                 );
     }
 
@@ -709,7 +686,7 @@ public class StudentDocumentService {
                         email
                 )
                 .orElseThrow(
-                        InvalidCredentialsException::new
+                        () -> new BusinessException(INVALID_CREDENTIALS)
                 );
     }
 
@@ -757,7 +734,7 @@ public class StudentDocumentService {
                         );
 
         if (!ownsDocument) {
-            throw new StudentDocumentAccessDeniedException(
+            throw new BusinessException(STUDENT_DOCUMENT_ACCESS_DENIED,
                     document.getId()
             );
         }
@@ -785,7 +762,7 @@ public class StudentDocumentService {
                         );
 
         if (!sameDormitory) {
-            throw new StudentDocumentAccessDeniedException(
+            throw new BusinessException(STUDENT_DOCUMENT_ACCESS_DENIED,
                     document.getId()
             );
         }
@@ -796,18 +773,18 @@ public class StudentDocumentService {
             StudentDocument document
     ) {
         if (reviewer.getRole() != Role.REVIEWER || !reviewer.isActive()) {
-            throw new StudentDocumentAccessDeniedException(document.getId());
+            throw new BusinessException(STUDENT_DOCUMENT_ACCESS_DENIED, document.getId());
         }
 
         Dormitory reviewerDormitory = reviewer.getDormitory();
 
         if (reviewerDormitory == null) {
-            throw new StudentDocumentAccessDeniedException(document.getId());
+            throw new BusinessException(STUDENT_DOCUMENT_ACCESS_DENIED, document.getId());
         }
 
         DormitoryTerm activeTerm = dormitoryTermRepository
                 .findByActiveTrue()
-                .orElseThrow(ActiveDormitoryTermNotFoundException::new);
+                .orElseThrow(() -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND));
 
         boolean withinReviewerScope = studentDocumentRepository
                 .isWithinReviewerDocumentScope(
@@ -817,7 +794,7 @@ public class StudentDocumentService {
                 );
 
         if (!withinReviewerScope) {
-            throw new StudentDocumentAccessDeniedException(document.getId());
+            throw new BusinessException(STUDENT_DOCUMENT_ACCESS_DENIED, document.getId());
         }
     }
 
@@ -842,7 +819,7 @@ public class StudentDocumentService {
             return;
         }
 
-        throw new InvalidAdminConfigurationException(
+        throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                 "Admin kullanıcısının yetki kapsamı geçersizdir."
         );
     }
@@ -937,7 +914,7 @@ public class StudentDocumentService {
                         admissionId
                 )
                 .orElseThrow(
-                        () -> new AdmissionNotFoundException(
+                        () -> new BusinessException(ADMISSION_NOT_FOUND,
                                 admissionId
                         )
                 );
@@ -962,7 +939,7 @@ public class StudentDocumentService {
                     );
 
             case STUDENT ->
-                    throw new StudentDocumentAccessDeniedException(
+                    throw new BusinessException(STUDENT_DOCUMENT_ACCESS_DENIED,
                             admission.getId()
                     );
         }
@@ -988,7 +965,7 @@ public class StudentDocumentService {
                         );
 
         if (!sameDormitory) {
-            throw new AdmissionAccessDeniedException(
+            throw new BusinessException(ADMISSION_ACCESS_DENIED,
                     admission.getId()
             );
         }
@@ -999,12 +976,12 @@ public class StudentDocumentService {
             Admission admission
     ) {
         if (reviewer.getRole() != Role.REVIEWER || !reviewer.isActive()) {
-            throw new AdmissionAccessDeniedException(admission.getId());
+            throw new BusinessException(ADMISSION_ACCESS_DENIED, admission.getId());
         }
 
         DormitoryTerm activeTerm = dormitoryTermRepository
                 .findByActiveTrue()
-                .orElseThrow(ActiveDormitoryTermNotFoundException::new);
+                .orElseThrow(() -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND));
 
         Dormitory reviewerDormitory = reviewer.getDormitory();
         Dormitory admissionDormitory = admission.getDormitory();
@@ -1017,7 +994,7 @@ public class StudentDocumentService {
                 && admission.getStatus() == AdmissionStatus.APPROVED;
 
         if (!withinReviewerScope) {
-            throw new AdmissionAccessDeniedException(admission.getId());
+            throw new BusinessException(ADMISSION_ACCESS_DENIED, admission.getId());
         }
     }
 
@@ -1042,7 +1019,7 @@ public class StudentDocumentService {
             return;
         }
 
-        throw new InvalidAdminConfigurationException(
+        throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                 "Admin kullanıcısının yetki kapsamı geçersizdir."
         );
     }
@@ -1153,5 +1130,41 @@ public class StudentDocumentService {
                             document.getId()
                     );
         }
+    }
+
+    private void recordDocumentUploadedOutbox(
+            StudentDocument document
+    ) {
+
+        Admission admission =
+                document.getAdmission();
+
+        Long studentId =
+                admission.getStudent().getId();
+
+        String eventId =
+                UUID.randomUUID().toString();
+
+        DocumentUploadedEvent event =
+                new DocumentUploadedEvent(
+                        eventId,
+                        "DOCUMENT_UPLOADED",
+                        studentId,
+                        admission.getId(),
+                        document.getId(),
+                        document.getDocumentType().getId(),
+                        admission.getDormitory().getId(),
+                        LocalDateTime.now()
+                );
+
+        outboxEventService.recordPending(
+                eventId,
+                "DOCUMENT_UPLOADED",
+                "STUDENT_DOCUMENT",
+                document.getId(),
+                "dormitory-activity-events",
+                "student-" + studentId,
+                event
+        );
     }
 }

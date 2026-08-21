@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.CreateDocumentTypeRequest;
 import com.ibb.yurtlar.dto.DocumentTypeResponse;
 import com.ibb.yurtlar.dto.UpdateDocumentTypeRequest;
@@ -7,15 +11,10 @@ import com.ibb.yurtlar.entity.DocumentType;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.DocumentTypeAlreadyExistsException;
-import com.ibb.yurtlar.exception.DocumentTypeNotFoundException;
 import com.ibb.yurtlar.repository.DocumentTypeRepository;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.enums.AuditAction;
 import com.ibb.yurtlar.enums.AuditEntityType;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.UserIsNotAdminException;
-import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,7 +49,7 @@ public class DocumentTypeService {
         if (documentTypeRepository
                 .existsByNameIgnoreCase(normalizedName)) {
 
-            throw new DocumentTypeAlreadyExistsException(
+            throw new BusinessException(DOCUMENT_TYPE_ALREADY_EXISTS,
                     normalizedName
             );
         }
@@ -118,7 +117,7 @@ public class DocumentTypeService {
                         );
 
         if (anotherDocumentTypeUsesName) {
-            throw new DocumentTypeAlreadyExistsException(
+            throw new BusinessException(DOCUMENT_TYPE_ALREADY_EXISTS,
                     normalizedName
             );
         }
@@ -140,7 +139,7 @@ public class DocumentTypeService {
         return documentTypeRepository
                 .findById(id)
                 .orElseThrow(
-                        () -> new DocumentTypeNotFoundException(id)
+                        () -> new BusinessException(DOCUMENT_TYPE_NOT_FOUND, id)
                 );
     }
 
@@ -180,14 +179,14 @@ public class DocumentTypeService {
     private void validateGlobalAdmin(String email) {
         AppUser admin = appUserRepository
                 .findByNormalizedEmail(email)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(admin.getId());
+            throw new BusinessException(USER_IS_NOT_ADMIN, admin.getId());
         }
 
         if (admin.getAdminScope() != AdminScope.GLOBAL) {
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Bu işlem yalnızca GLOBAL adminler tarafından yapılabilir."
             );
         }

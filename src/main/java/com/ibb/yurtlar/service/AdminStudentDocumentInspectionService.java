@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.AdminDocumentReviewTraceResponse;
 import com.ibb.yurtlar.dto.AdminStudentDocumentInspectionItemResponse;
 import com.ibb.yurtlar.dto.AdminStudentDocumentInspectionResponse;
@@ -13,11 +17,6 @@ import com.ibb.yurtlar.entity.TermDocumentRequirement;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.enums.StudentDocumentStatus;
-import com.ibb.yurtlar.exception.ActiveDormitoryTermNotFoundException;
-import com.ibb.yurtlar.exception.InvalidAdminConfigurationException;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.StudentManagementAccessDeniedException;
-import com.ibb.yurtlar.exception.UserIsNotAdminException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DocumentReviewRepository;
@@ -67,7 +66,7 @@ public class AdminStudentDocumentInspectionService {
         Long adminDormitoryId = resolveDormitoryScope(admin);
         DormitoryTerm activeTerm = dormitoryTermRepository
                 .findByActiveTrue()
-                .orElseThrow(ActiveDormitoryTermNotFoundException::new);
+                .orElseThrow(() -> new BusinessException(ACTIVE_DORMITORY_TERM_NOT_FOUND));
 
         Admission admission = admissionRepository
                 .findAdminInspectionAdmission(
@@ -75,8 +74,7 @@ public class AdminStudentDocumentInspectionService {
                         activeTerm.getId(),
                         adminDormitoryId
                 )
-                .orElseThrow(() -> new StudentManagementAccessDeniedException(
-                        "Bu öğrencinin aktif dönem belge sürecini inceleme yetkiniz bulunmamaktadır."
+                .orElseThrow(() -> new BusinessException(STUDENT_MANAGEMENT_ACCESS_DENIED_MESSAGE, "Bu öğrencinin aktif dönem belge sürecini inceleme yetkiniz bulunmamaktadır."
                 ));
 
         List<TermDocumentRequirement> requirements = requirementRepository
@@ -202,13 +200,13 @@ public class AdminStudentDocumentInspectionService {
     private AppUser findActiveAdmin(String email) {
         AppUser admin = appUserRepository
                 .findByNormalizedEmail(email)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(admin.getId());
+            throw new BusinessException(USER_IS_NOT_ADMIN, admin.getId());
         }
         if (!admin.isActive()) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
         return admin;
     }
@@ -218,14 +216,14 @@ public class AdminStudentDocumentInspectionService {
             return null;
         }
         if (admin.getAdminScope() != AdminScope.DORMITORY) {
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "Admin kullanıcısının yetki kapsamı geçersizdir."
             );
         }
 
         Dormitory dormitory = admin.getDormitory();
         if (dormitory == null) {
-            throw new InvalidAdminConfigurationException(
+            throw new BusinessException(INVALID_ADMIN_CONFIGURATION,
                     "Yurt admini için yurt ataması zorunludur."
             );
         }

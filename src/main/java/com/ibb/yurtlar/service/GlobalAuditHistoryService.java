@@ -1,19 +1,24 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.AuditLogPageResponse;
 import com.ibb.yurtlar.dto.AuditLogResponse;
+import com.ibb.yurtlar.dto.AuditLogAnalyticsResponse;
+import com.ibb.yurtlar.dto.AuditLogReindexResponse;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.AuditLog;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.AuditCategory;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.DormitoryNotFoundException;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.InvalidAuditHistoryRequestException;
-import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AuditLogRepository;
 import com.ibb.yurtlar.repository.DormitoryRepository;
+import com.ibb.yurtlar.search.audit.AuditLogReindexService;
+import com.ibb.yurtlar.search.audit.AuditLogSearchCriteria;
+import com.ibb.yurtlar.search.audit.AuditLogSearchService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -24,15 +29,38 @@ public class GlobalAuditHistoryService {
     private final AuditLogRepository auditLogRepository;
     private final AppUserRepository appUserRepository;
     private final DormitoryRepository dormitoryRepository;
+    private final AuditLogSearchService auditLogSearchService;
+    private final AuditLogReindexService auditLogReindexService;
 
     public GlobalAuditHistoryService(
             AuditLogRepository auditLogRepository,
             AppUserRepository appUserRepository,
-            DormitoryRepository dormitoryRepository
+            DormitoryRepository dormitoryRepository,
+            AuditLogSearchService auditLogSearchService,
+            AuditLogReindexService auditLogReindexService
     ) {
         this.auditLogRepository = auditLogRepository;
         this.appUserRepository = appUserRepository;
         this.dormitoryRepository = dormitoryRepository;
+        this.auditLogSearchService = auditLogSearchService;
+        this.auditLogReindexService = auditLogReindexService;
+    }
+
+    public AuditLogPageResponse search(AuditLogSearchCriteria criteria, String authenticatedEmail) {
+        validateGlobalAdmin(authenticatedEmail);
+        return auditLogSearchService.search(criteria, null);
+    }
+
+    public AuditLogAnalyticsResponse analytics(java.time.LocalDateTime from,
+                                                java.time.LocalDateTime to,
+                                                String authenticatedEmail) {
+        validateGlobalAdmin(authenticatedEmail);
+        return auditLogSearchService.analytics(from, to);
+    }
+
+    public AuditLogReindexResponse reindex(String authenticatedEmail) {
+        validateGlobalAdmin(authenticatedEmail);
+        return auditLogReindexService.reindex();
     }
 
     @Transactional(readOnly = true)
@@ -41,50 +69,51 @@ public class GlobalAuditHistoryService {
             AuditCategory category,
             int page,
             int size,
+            String query,
             String authenticatedEmail
     ) {
         validateGlobalAdmin(authenticatedEmail);
         validatePage(page, size);
         if (category != AuditCategory.STUDENT_ACTIVITY
                 && category != AuditCategory.REVIEWER_ACTIVITY) {
-            throw new InvalidAuditHistoryRequestException(
+            throw new BusinessException(INVALID_AUDIT_HISTORY_REQUEST,
                     "Yurt operasyonları için yalnızca öğrenci veya değerlendirici işlem kategorisi kullanılabilir."
             );
         }
         if (!dormitoryRepository.existsById(dormitoryId)) {
-            throw new DormitoryNotFoundException(dormitoryId);
+            throw new BusinessException(DORMITORY_NOT_FOUND, dormitoryId);
         }
 
-        return toPageResponse(auditLogRepository
-                .findByDormitoryIdAndCategoryOrderByCreatedAtDescIdDesc(
-                        dormitoryId,
-                        category,
-                        PageRequest.of(page, size)
-                ));
+        return toPageResponse(auditLogRepository.searchDormitoryHistory(
+                dormitoryId, category, normalizeQuery(query), PageRequest.of(page, size)
+        ));
     }
 
     @Transactional(readOnly = true)
     public AuditLogPageResponse getSystemManagement(
             int page,
             int size,
+            String query,
             String authenticatedEmail
     ) {
         validateGlobalAdmin(authenticatedEmail);
         validatePage(page, size);
-        return toPageResponse(auditLogRepository
-                .findByCategoryOrderByCreatedAtDescIdDesc(
-                        AuditCategory.SYSTEM_MANAGEMENT,
-                        PageRequest.of(page, size)
-                ));
+        return toPageResponse(auditLogRepository.searchSystemHistory(
+                AuditCategory.SYSTEM_MANAGEMENT, normalizeQuery(query), PageRequest.of(page, size)
+        ));
+    }
+
+    private String normalizeQuery(String query) {
+        return query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     private void validateGlobalAdmin(String email) {
         AppUser user = appUserRepository.findByNormalizedEmail(email)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
         if (!user.isActive()
                 || user.getRole() != Role.ADMIN
                 || user.getAdminScope() != AdminScope.GLOBAL) {
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Sistem geçmişini yalnızca aktif GLOBAL adminler görüntüleyebilir."
             );
         }
@@ -92,7 +121,7 @@ public class GlobalAuditHistoryService {
 
     private void validatePage(int page, int size) {
         if (page < 0 || size < 1 || size > 100) {
-            throw new InvalidAuditHistoryRequestException(
+            throw new BusinessException(INVALID_AUDIT_HISTORY_REQUEST,
                     "Sayfa 0 veya daha büyük, sayfa boyutu 1 ile 100 arasında olmalıdır."
             );
         }

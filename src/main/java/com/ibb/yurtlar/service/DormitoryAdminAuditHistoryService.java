@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.AuditLogPageResponse;
 import com.ibb.yurtlar.dto.AuditLogResponse;
 import com.ibb.yurtlar.entity.AppUser;
@@ -7,11 +11,10 @@ import com.ibb.yurtlar.entity.AuditLog;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.AuditCategory;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.InvalidAuditHistoryRequestException;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.AuditLogRepository;
+import com.ibb.yurtlar.search.audit.AuditLogSearchCriteria;
+import com.ibb.yurtlar.search.audit.AuditLogSearchService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -21,13 +24,23 @@ import org.springframework.transaction.annotation.Transactional;
 public class DormitoryAdminAuditHistoryService {
     private final AuditLogRepository auditLogRepository;
     private final AppUserRepository appUserRepository;
+    private final AuditLogSearchService auditLogSearchService;
 
     public DormitoryAdminAuditHistoryService(
             AuditLogRepository auditLogRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            AuditLogSearchService auditLogSearchService
     ) {
         this.auditLogRepository = auditLogRepository;
         this.appUserRepository = appUserRepository;
+        this.auditLogSearchService = auditLogSearchService;
+    }
+
+    @Transactional(readOnly = true)
+    public AuditLogPageResponse searchOwnDormitory(
+            AuditLogSearchCriteria criteria, String authenticatedEmail) {
+        AppUser admin = validateDormitoryAdmin(authenticatedEmail);
+        return auditLogSearchService.search(criteria, admin.getDormitory().getId());
     }
 
     @Transactional(readOnly = true)
@@ -35,17 +48,17 @@ public class DormitoryAdminAuditHistoryService {
             AuditCategory category,
             int page,
             int size,
+            String query,
             String authenticatedEmail
     ) {
         AppUser admin = validateDormitoryAdmin(authenticatedEmail);
         validateRequest(category, page, size);
 
-        Page<AuditLog> auditPage = auditLogRepository
-                .findByDormitoryIdAndCategoryOrderByCreatedAtDescIdDesc(
-                        admin.getDormitory().getId(),
-                        category,
-                        PageRequest.of(page, size)
-                );
+        Page<AuditLog> auditPage = auditLogRepository.searchDormitoryHistory(
+                admin.getDormitory().getId(), category,
+                query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT),
+                PageRequest.of(page, size)
+        );
 
         return new AuditLogPageResponse(
                 auditPage.getContent().stream().map(this::toResponse).toList(),
@@ -60,12 +73,12 @@ public class DormitoryAdminAuditHistoryService {
 
     private AppUser validateDormitoryAdmin(String email) {
         AppUser user = appUserRepository.findByNormalizedEmail(email)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
         if (!user.isActive()
                 || user.getRole() != Role.ADMIN
                 || user.getAdminScope() != AdminScope.DORMITORY
                 || user.getDormitory() == null) {
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Yurt işlem geçmişini yalnızca yurt ataması bulunan aktif yurt adminleri görüntüleyebilir."
             );
         }
@@ -75,12 +88,12 @@ public class DormitoryAdminAuditHistoryService {
     private void validateRequest(AuditCategory category, int page, int size) {
         if (category != AuditCategory.STUDENT_ACTIVITY
                 && category != AuditCategory.REVIEWER_ACTIVITY) {
-            throw new InvalidAuditHistoryRequestException(
+            throw new BusinessException(INVALID_AUDIT_HISTORY_REQUEST,
                     "Yurt işlem geçmişinde yalnızca öğrenci veya değerlendirici işlemleri görüntülenebilir."
             );
         }
         if (page < 0 || size < 1 || size > 100) {
-            throw new InvalidAuditHistoryRequestException(
+            throw new BusinessException(INVALID_AUDIT_HISTORY_REQUEST,
                     "Sayfa 0 veya daha büyük, sayfa boyutu 1 ile 100 arasında olmalıdır."
             );
         }

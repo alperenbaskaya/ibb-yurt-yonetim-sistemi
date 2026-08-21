@@ -1,11 +1,14 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.CurrentUserResponse;
 import com.ibb.yurtlar.dto.LoginRequest;
 import com.ibb.yurtlar.dto.LoginResponse;
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.Dormitory;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -51,7 +54,7 @@ public class AuthService {
                 appUserRepository
                         .findByNormalizedEmail(normalizedEmail)
                         .orElseThrow(() -> {
-                            return new InvalidCredentialsException();
+                            return new BusinessException(INVALID_CREDENTIALS);
                         });
 
         boolean passwordMatches =
@@ -61,11 +64,11 @@ public class AuthService {
                 );
 
         if (!passwordMatches) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
 
         if (!user.isActive()) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
 
         String accessToken =
@@ -111,11 +114,11 @@ public class AuthService {
                                 authenticatedEmail
                         )
                         .orElseThrow(
-                                InvalidCredentialsException::new
+                                () -> new BusinessException(INVALID_CREDENTIALS)
                         );
 
         if (!user.isActive()) {
-            throw new InvalidCredentialsException();
+            throw new BusinessException(INVALID_CREDENTIALS);
         }
 
         Dormitory dormitory =

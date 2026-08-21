@@ -2,6 +2,7 @@ package com.ibb.yurtlar.repository;
 
 import com.ibb.yurtlar.entity.DocumentReview;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,6 +21,30 @@ public interface DocumentReviewRepository
     List<DocumentReview>
     findAllByReviewer_IdOrderByReviewedAtDesc(
             Long reviewerUserId
+    );
+
+    @Query("""
+        SELECT review
+        FROM DocumentReview review
+        JOIN review.studentDocument document
+        JOIN document.admission admission
+        JOIN admission.student student
+        JOIN student.user studentUser
+        WHERE review.reviewer.id = :reviewerUserId
+          AND (
+            :query = ''
+            OR LOWER(studentUser.firstName) LIKE CONCAT('%', :query, '%')
+            OR LOWER(studentUser.lastName) LIKE CONCAT('%', :query, '%')
+            OR LOWER(CONCAT(studentUser.firstName, ' ', studentUser.lastName)) LIKE CONCAT('%', :query, '%')
+            OR LOWER(studentUser.email) LIKE CONCAT('%', :query, '%')
+            OR student.identityNumber LIKE CONCAT(:query, '%')
+          )
+        ORDER BY review.reviewedAt DESC, review.id DESC
+        """)
+    Page<DocumentReview> searchMyReviews(
+            @Param("reviewerUserId") Long reviewerUserId,
+            @Param("query") String query,
+            Pageable pageable
     );
 
     @Query("""

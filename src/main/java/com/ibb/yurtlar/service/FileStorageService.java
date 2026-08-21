@@ -1,14 +1,15 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.config.FileStorageProperties;
 import com.ibb.yurtlar.dto.StoredFileInfo;
-import com.ibb.yurtlar.exception.EmptyFileException;
 import com.ibb.yurtlar.exception.FileStorageException;
-import com.ibb.yurtlar.exception.InvalidFileTypeException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-import com.ibb.yurtlar.exception.InvalidFileSizeException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -59,7 +60,7 @@ public class FileStorageService {
             Long admissionId,
             Long documentTypeId
     ) {
-        validateFile(file);
+        validateStudentDocumentFile(file);
 
         String originalFileName =
                 StringUtils.cleanPath(
@@ -146,9 +147,9 @@ public class FileStorageService {
         }
     }
 
-    private void validateFile(MultipartFile file) {
+    public void validateStudentDocumentFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new EmptyFileException();
+            throw new BusinessException(EMPTY_FILE);
         }
 
 
@@ -157,7 +158,7 @@ public class FileStorageService {
             throw new IllegalArgumentException
             ("Dosya boyutu en fazla 5 MB olabilir.");
             */
-            throw new InvalidFileSizeException();
+            throw new BusinessException(INVALID_FILE_SIZE);
         }
 
         String contentType = file.getContentType();
@@ -165,7 +166,7 @@ public class FileStorageService {
         if (contentType == null
                 || !ALLOWED_CONTENT_TYPES.containsKey(contentType)) {
 
-            throw new InvalidFileTypeException(contentType);
+            throw new BusinessException(INVALID_FILE_TYPE, contentType);
         }
     }
 

@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.DocumentCompletionResponse;
 import com.ibb.yurtlar.dto.StudentDashboardResponse;
 import com.ibb.yurtlar.dto.StudentDocumentActionRequiredResponse;
@@ -15,8 +19,6 @@ import com.ibb.yurtlar.enums.AdmissionStatus;
 import com.ibb.yurtlar.enums.StudentDocumentActionReason;
 import com.ibb.yurtlar.enums.StudentDocumentStatus;
 import com.ibb.yurtlar.enums.UploadPeriodStatus;
-import com.ibb.yurtlar.exception.ActiveAdmissionNotFoundException;
-import com.ibb.yurtlar.exception.StudentNotFoundException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.DocumentReviewRepository;
 import com.ibb.yurtlar.repository.StudentRepository;
@@ -70,8 +72,8 @@ public class StudentDashboardService {
                 studentRepository
                         .findByUserEmail(email)
                         .orElseThrow(
-                                () -> new StudentNotFoundException(
-                                        null
+                                () -> new BusinessException(STUDENT_NOT_FOUND,
+                                        (Object) null
                                 )
                         );
 
@@ -81,7 +83,7 @@ public class StudentDashboardService {
                                 student.getId()
                         )
                         .orElseThrow(
-                                () -> new ActiveAdmissionNotFoundException(
+                                () -> new BusinessException(ACTIVE_ADMISSION_NOT_FOUND,
                                         student.getId()
                                 )
                         );

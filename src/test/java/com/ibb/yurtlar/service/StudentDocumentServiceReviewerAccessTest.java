@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.entity.AppUser;
 import com.ibb.yurtlar.entity.Admission;
 import com.ibb.yurtlar.entity.Dormitory;
@@ -7,7 +11,6 @@ import com.ibb.yurtlar.entity.DormitoryTerm;
 import com.ibb.yurtlar.entity.StudentDocument;
 import com.ibb.yurtlar.enums.Role;
 import com.ibb.yurtlar.enums.AdminScope;
-import com.ibb.yurtlar.exception.StudentDocumentAccessDeniedException;
 import com.ibb.yurtlar.repository.AdmissionRepository;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DormitoryTermRepository;
@@ -144,7 +147,7 @@ class StudentDocumentServiceReviewerAccessTest {
                 .thenReturn(false);
 
         assertThrows(
-                StudentDocumentAccessDeniedException.class,
+                BusinessException.class,
                 () -> service.validateReviewerDocumentAccess(reviewer, document)
         );
     }

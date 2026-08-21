@@ -1,5 +1,9 @@
 package com.ibb.yurtlar.service;
 
+import static com.ibb.yurtlar.exception.reason.BusinessExceptionReason.*;
+
+import com.ibb.yurtlar.exception.BusinessException;
+
 import com.ibb.yurtlar.dto.CreateTermDocumentRequirementRequest;
 import com.ibb.yurtlar.dto.TermDocumentRequirementResponse;
 import com.ibb.yurtlar.dto.UpdateTermDocumentRequirementRequest;
@@ -9,14 +13,6 @@ import com.ibb.yurtlar.entity.DormitoryTerm;
 import com.ibb.yurtlar.entity.TermDocumentRequirement;
 import com.ibb.yurtlar.enums.AdminScope;
 import com.ibb.yurtlar.enums.Role;
-import com.ibb.yurtlar.exception.DocumentTypeNotFoundException;
-import com.ibb.yurtlar.exception.DormitoryTermNotFoundException;
-import com.ibb.yurtlar.exception.InactiveDocumentTypeException;
-import com.ibb.yurtlar.exception.TermDocumentRequirementAlreadyExistsException;
-import com.ibb.yurtlar.exception.TermDocumentRequirementNotFoundException;
-import com.ibb.yurtlar.exception.InvalidCredentialsException;
-import com.ibb.yurtlar.exception.UserIsNotAdminException;
-import com.ibb.yurtlar.exception.UserManagementAccessDeniedException;
 import com.ibb.yurtlar.repository.AppUserRepository;
 import com.ibb.yurtlar.repository.DocumentTypeRepository;
 import com.ibb.yurtlar.repository.DormitoryTermRepository;
@@ -71,7 +67,7 @@ public class TermDocumentRequirementService {
                 dormitoryTermRepository
                         .findById(request.dormitoryTermId())
                         .orElseThrow(
-                                () -> new DormitoryTermNotFoundException(
+                                () -> new BusinessException(DORMITORY_TERM_NOT_FOUND,
                                         request.dormitoryTermId()
                                 )
                         );
@@ -80,13 +76,13 @@ public class TermDocumentRequirementService {
                 documentTypeRepository
                         .findById(request.documentTypeId())
                         .orElseThrow(
-                                () -> new DocumentTypeNotFoundException(
+                                () -> new BusinessException(DOCUMENT_TYPE_NOT_FOUND,
                                         request.documentTypeId()
                                 )
                         );
 
         if (!documentType.isActive()) {
-            throw new InactiveDocumentTypeException(
+            throw new BusinessException(INACTIVE_DOCUMENT_TYPE,
                     documentType.getId()
             );
         }
@@ -99,7 +95,7 @@ public class TermDocumentRequirementService {
                         );
 
         if (requirementExists) {
-            throw new TermDocumentRequirementAlreadyExistsException(
+            throw new BusinessException(TERM_DOCUMENT_REQUIREMENT_ALREADY_EXISTS,
                     dormitoryTerm.getId(),
                     documentType.getId()
             );
@@ -188,7 +184,7 @@ public class TermDocumentRequirementService {
         return termDocumentRequirementRepository
                 .findById(id)
                 .orElseThrow(
-                        () -> new TermDocumentRequirementNotFoundException(
+                        () -> new BusinessException(TERM_DOCUMENT_REQUIREMENT_NOT_FOUND,
                                 id
                         )
                 );
@@ -198,7 +194,7 @@ public class TermDocumentRequirementService {
             Long dormitoryTermId
     ) {
         if (!dormitoryTermRepository.existsById(dormitoryTermId)) {
-            throw new DormitoryTermNotFoundException(
+            throw new BusinessException(DORMITORY_TERM_NOT_FOUND,
                     dormitoryTermId
             );
         }
@@ -234,14 +230,14 @@ public class TermDocumentRequirementService {
     private void validateGlobalAdmin(String email) {
         AppUser admin = appUserRepository
                 .findByNormalizedEmail(email)
-                .orElseThrow(InvalidCredentialsException::new);
+                .orElseThrow(() -> new BusinessException(INVALID_CREDENTIALS));
 
         if (admin.getRole() != Role.ADMIN) {
-            throw new UserIsNotAdminException(admin.getId());
+            throw new BusinessException(USER_IS_NOT_ADMIN, admin.getId());
         }
 
         if (admin.getAdminScope() != AdminScope.GLOBAL) {
-            throw new UserManagementAccessDeniedException(
+            throw new BusinessException(USER_MANAGEMENT_ACCESS_DENIED,
                     "Bu işlem yalnızca GLOBAL adminler tarafından yapılabilir."
             );
         }

@@ -1,6 +1,6 @@
 package com.ibb.yurtlar.config;
 
-import com.ibb.yurtlar.exception.ApiError;
+import com.ibb.yurtlar.exception.dto.ErrorResponse;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -9,6 +9,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
+import com.ibb.yurtlar.observability.ErrorMetricsService;
+import com.ibb.yurtlar.observability.ErrorSource;
+import com.ibb.yurtlar.observability.StructuredErrorLogger;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -18,12 +21,18 @@ public class CustomAccessDeniedHandler
         implements AccessDeniedHandler {
 
     private final ObjectMapper objectMapper;
+    private final ErrorMetricsService errorMetricsService;
+    private final StructuredErrorLogger structuredErrorLogger;
 
     public CustomAccessDeniedHandler(
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ErrorMetricsService errorMetricsService,
+            StructuredErrorLogger structuredErrorLogger
     ) {
         this.objectMapper =
                 objectMapper;
+        this.errorMetricsService = errorMetricsService;
+        this.structuredErrorLogger = structuredErrorLogger;
     }
 
     @Override
@@ -32,12 +41,17 @@ public class CustomAccessDeniedHandler
             HttpServletResponse response,
             AccessDeniedException accessDeniedException
     ) throws IOException, ServletException {
+        errorMetricsService.record("ACCESS_DENIED", HttpStatus.FORBIDDEN,
+                ErrorSource.SECURITY, accessDeniedException);
+        structuredErrorLogger.expected("ACCESS_DENIED", HttpStatus.FORBIDDEN,
+                ErrorSource.SECURITY, accessDeniedException);
 
-        ApiError apiError =
-                new ApiError(
+        ErrorResponse errorResponse =
+                new ErrorResponse(
                         LocalDateTime.now(),
                         HttpStatus.FORBIDDEN.value(),
                         HttpStatus.FORBIDDEN.getReasonPhrase(),
+                        "ACCESS_DENIED",
                         "Bu işlem için yetkiniz bulunmamaktadır.",
                         request.getRequestURI(),
                         null
@@ -57,7 +71,7 @@ public class CustomAccessDeniedHandler
 
         objectMapper.writeValue(
                 response.getOutputStream(),
-                apiError
+                errorResponse
         );
     }
 }
