@@ -37,7 +37,7 @@ services:
     image: danielqsj/kafka-exporter:v1.9.0
     command:
       - "--kafka.server=kafka:9092"
-      - "--topic.filter=^dormitory-activity-events$"
+      - "--topic.filter=^(dormitory-activity-events|yurtlar-load-test-events)$"
       - "--group.filter=^document-upload-idempotency-group-v1$"
       - "--concurrent.enable"
       - "--refresh.metadata=5s"

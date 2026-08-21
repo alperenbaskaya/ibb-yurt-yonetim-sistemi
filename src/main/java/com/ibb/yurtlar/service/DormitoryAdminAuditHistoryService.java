@@ -48,17 +48,17 @@ public class DormitoryAdminAuditHistoryService {
             AuditCategory category,
             int page,
             int size,
+            String query,
             String authenticatedEmail
     ) {
         AppUser admin = validateDormitoryAdmin(authenticatedEmail);
         validateRequest(category, page, size);
 
-        Page<AuditLog> auditPage = auditLogRepository
-                .findByDormitoryIdAndCategoryOrderByCreatedAtDescIdDesc(
-                        admin.getDormitory().getId(),
-                        category,
-                        PageRequest.of(page, size)
-                );
+        Page<AuditLog> auditPage = auditLogRepository.searchDormitoryHistory(
+                admin.getDormitory().getId(), category,
+                query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT),
+                PageRequest.of(page, size)
+        );
 
         return new AuditLogPageResponse(
                 auditPage.getContent().stream().map(this::toResponse).toList(),

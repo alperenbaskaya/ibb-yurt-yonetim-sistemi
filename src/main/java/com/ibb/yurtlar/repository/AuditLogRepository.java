@@ -50,6 +50,54 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     @Query("""
         SELECT audit
         FROM AuditLog audit
+        LEFT JOIN AppUser actor ON actor.id = audit.actorUserId
+        LEFT JOIN Student subject ON subject.id = audit.subjectStudentId
+        LEFT JOIN subject.user subjectUser
+        WHERE audit.dormitoryId = :dormitoryId
+          AND audit.category = :category
+          AND (
+            :query = ''
+            OR LOWER(audit.actorName) LIKE CONCAT('%', :query, '%')
+            OR LOWER(COALESCE(actor.email, '')) LIKE CONCAT('%', :query, '%')
+            OR (
+              :category = com.ibb.yurtlar.enums.AuditCategory.STUDENT_ACTIVITY
+              AND (
+                LOWER(COALESCE(audit.subjectStudentName, '')) LIKE CONCAT('%', :query, '%')
+                OR LOWER(COALESCE(subjectUser.email, '')) LIKE CONCAT('%', :query, '%')
+                OR COALESCE(subject.identityNumber, '') LIKE CONCAT(:query, '%')
+              )
+            )
+          )
+        ORDER BY audit.createdAt DESC, audit.id DESC
+        """)
+    Page<AuditLog> searchDormitoryHistory(
+            @Param("dormitoryId") Long dormitoryId,
+            @Param("category") AuditCategory category,
+            @Param("query") String query,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT audit
+        FROM AuditLog audit
+        LEFT JOIN AppUser actor ON actor.id = audit.actorUserId
+        WHERE audit.category = :category
+          AND (
+            :query = ''
+            OR LOWER(audit.actorName) LIKE CONCAT('%', :query, '%')
+            OR LOWER(COALESCE(actor.email, '')) LIKE CONCAT('%', :query, '%')
+          )
+        ORDER BY audit.createdAt DESC, audit.id DESC
+        """)
+    Page<AuditLog> searchSystemHistory(
+            @Param("category") AuditCategory category,
+            @Param("query") String query,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT audit
+        FROM AuditLog audit
         WHERE audit.dormitoryId = :dormitoryId
           AND audit.category = :category
           AND audit.action IN :actions

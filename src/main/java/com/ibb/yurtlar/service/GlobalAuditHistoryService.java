@@ -69,6 +69,7 @@ public class GlobalAuditHistoryService {
             AuditCategory category,
             int page,
             int size,
+            String query,
             String authenticatedEmail
     ) {
         validateGlobalAdmin(authenticatedEmail);
@@ -83,27 +84,27 @@ public class GlobalAuditHistoryService {
             throw new BusinessException(DORMITORY_NOT_FOUND, dormitoryId);
         }
 
-        return toPageResponse(auditLogRepository
-                .findByDormitoryIdAndCategoryOrderByCreatedAtDescIdDesc(
-                        dormitoryId,
-                        category,
-                        PageRequest.of(page, size)
-                ));
+        return toPageResponse(auditLogRepository.searchDormitoryHistory(
+                dormitoryId, category, normalizeQuery(query), PageRequest.of(page, size)
+        ));
     }
 
     @Transactional(readOnly = true)
     public AuditLogPageResponse getSystemManagement(
             int page,
             int size,
+            String query,
             String authenticatedEmail
     ) {
         validateGlobalAdmin(authenticatedEmail);
         validatePage(page, size);
-        return toPageResponse(auditLogRepository
-                .findByCategoryOrderByCreatedAtDescIdDesc(
-                        AuditCategory.SYSTEM_MANAGEMENT,
-                        PageRequest.of(page, size)
-                ));
+        return toPageResponse(auditLogRepository.searchSystemHistory(
+                AuditCategory.SYSTEM_MANAGEMENT, normalizeQuery(query), PageRequest.of(page, size)
+        ));
+    }
+
+    private String normalizeQuery(String query) {
+        return query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     private void validateGlobalAdmin(String email) {

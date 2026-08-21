@@ -41,6 +41,7 @@ public class GlobalAuditHistoryController {
             @RequestParam String category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String q,
             Authentication authentication
     ) {
         return globalAuditHistoryService.getDormitoryOperations(
@@ -48,6 +49,7 @@ public class GlobalAuditHistoryController {
                 parseDormitoryCategory(category),
                 page,
                 size,
+                q,
                 authentication.getName()
         );
     }
@@ -56,11 +58,13 @@ public class GlobalAuditHistoryController {
     public AuditLogPageResponse getSystemManagement(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String q,
             Authentication authentication
     ) {
         return globalAuditHistoryService.getSystemManagement(
                 page,
                 size,
+                q,
                 authentication.getName()
         );
     }

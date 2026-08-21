@@ -223,6 +223,26 @@ public class DocumentReviewService {
     }
 
     @Transactional(readOnly = true)
+    public com.ibb.yurtlar.dto.DocumentReviewPageResponse searchMyReviews(
+            String reviewerEmail, String query, int page, int size
+    ) {
+        AppUser reviewer = validateReviewerByEmail(reviewerEmail);
+        if (page < 0 || size < 1 || size > 100) {
+            throw new IllegalArgumentException("Invalid review history page request");
+        }
+        var result = documentReviewRepository.searchMyReviews(
+                reviewer.getId(),
+                query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT),
+                PageRequest.of(page, size)
+        );
+        return new com.ibb.yurtlar.dto.DocumentReviewPageResponse(
+                result.getContent().stream().map(this::toResponse).toList(),
+                result.getNumber(), result.getSize(), result.getTotalElements(),
+                result.getTotalPages(), result.isFirst(), result.isLast()
+        );
+    }
+
+    @Transactional(readOnly = true)
     public List<DocumentReviewResponse>
     getRecentReviewsByDormitory(
             Long dormitoryId

@@ -60,7 +60,7 @@ public class FileStorageService {
             Long admissionId,
             Long documentTypeId
     ) {
-        validateFile(file);
+        validateStudentDocumentFile(file);
 
         String originalFileName =
                 StringUtils.cleanPath(
@@ -147,7 +147,7 @@ public class FileStorageService {
         }
     }
 
-    private void validateFile(MultipartFile file) {
+    public void validateStudentDocumentFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(EMPTY_FILE);
         }

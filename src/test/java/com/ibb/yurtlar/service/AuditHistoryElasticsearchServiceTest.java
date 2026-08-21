@@ -41,14 +41,14 @@ class AuditHistoryElasticsearchServiceTest {
     void existingMysqlHistoryStillReadsAuditRepository() {
         when(userRepository.findByNormalizedEmail("admin@example.com"))
                 .thenReturn(Optional.of(dormitoryAdmin(55L)));
-        when(auditRepository.findByDormitoryIdAndCategoryOrderByCreatedAtDescIdDesc(
-                eq(55L), eq(AuditCategory.STUDENT_ACTIVITY), any())).thenReturn(Page.empty());
+        when(auditRepository.searchDormitoryHistory(
+                eq(55L), eq(AuditCategory.STUDENT_ACTIVITY), eq(""), any())).thenReturn(Page.empty());
 
-        service.getOwnDormitoryHistory(AuditCategory.STUDENT_ACTIVITY, 0, 20,
+        service.getOwnDormitoryHistory(AuditCategory.STUDENT_ACTIVITY, 0, 20, null,
                 "admin@example.com");
 
-        verify(auditRepository).findByDormitoryIdAndCategoryOrderByCreatedAtDescIdDesc(
-                eq(55L), eq(AuditCategory.STUDENT_ACTIVITY), any());
+        verify(auditRepository).searchDormitoryHistory(
+                eq(55L), eq(AuditCategory.STUDENT_ACTIVITY), eq(""), any());
         verifyNoInteractions(searchService);
     }
 
